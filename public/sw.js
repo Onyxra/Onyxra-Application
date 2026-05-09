@@ -7,30 +7,30 @@
  *   Anthropic  → Network Only (never cache AI responses)
  */
 
-const CACHE_NAME = 'koltyn-os-v5';
+const CACHE_NAME = 'koltyn-os-v6';
 const FONT_CACHE = 'koltyn-fonts-v1';
 
 const APP_SHELL = [
-  './index.html',
-  './style.css',
-  './data.js',
-  './state.js',
-  './app.js',
-  './manifest.json',
-  './pages/dashboard.js',
-  './pages/nutrition.js',
-  './pages/workout.js',
-  './pages/business.js',
-  './pages/wealth.js',
-  './pages/creative.js',
-  './icons/icon-72.png',
-  './icons/icon-96.png',
-  './icons/icon-128.png',
-  './icons/icon-144.png',
-  './icons/icon-152.png',
-  './icons/icon-192.png',
-  './icons/icon-384.png',
-  './icons/icon-512.png',
+  '/',
+  '/manifest.json',
+  '/js/data.js',
+  '/js/state.js',
+  '/js/app.js',
+  '/js/pages/dashboard.js',
+  '/js/pages/nutrition.js',
+  '/js/pages/workout.js',
+  '/js/pages/business.js',
+  '/js/pages/wealth.js',
+  '/js/pages/passions.js',
+  '/js/pages/settings.js',
+  '/icons/icon-72.png',
+  '/icons/icon-96.png',
+  '/icons/icon-128.png',
+  '/icons/icon-144.png',
+  '/icons/icon-152.png',
+  '/icons/icon-192.png',
+  '/icons/icon-384.png',
+  '/icons/icon-512.png',
 ];
 
 /* ── Install: pre-cache everything ── */
@@ -93,9 +93,8 @@ self.addEventListener('fetch', event => {
         }
         return response;
       }).catch(() => {
-        /* If the request is for a page, serve index.html as fallback */
         if (request.destination === 'document') {
-          return caches.match('./index.html');
+          return caches.match('/');
         }
       });
     })
