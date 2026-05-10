@@ -9,7 +9,7 @@ export default function Home() {
   useEffect(() => {
     // Initialize Supabase and expose to vanilla JS
     const supabase = getSupabase();
-    window.__supabase = supabase;
+    if (supabase) window.__supabase = supabase;
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })

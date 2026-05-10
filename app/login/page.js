@@ -20,6 +20,12 @@ export default function LoginPage() {
 
     const supabase = getSupabase();
 
+    if (!supabase) {
+      setError('App is not configured yet. Supabase environment variables are missing.');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({
