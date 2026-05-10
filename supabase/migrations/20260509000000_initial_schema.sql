@@ -1,10 +1,14 @@
 -- ╔══════════════════════════════════════════════════════════════════╗
--- ║  ONYXRA — Supabase Database Migration                          ║
--- ║  Run this in Supabase SQL Editor (Dashboard → SQL Editor)       ║
+-- ║  ONYXRA — Initial Schema                                        ║
+-- ║  Creates the users + user_state tables, RLS, and auto-triggers. ║
+-- ║  Idempotent: safe to re-run.                                    ║
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 -- ── Users table (extends auth.users with display info) ──
-create table if not exists public.users (
+-- NOTE: This migration originally created a table named "profiles".
+-- A later migration renames it to "users". Both are kept idempotent so this
+-- file can run safely against any state.
+create table if not exists public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
   display_name text,
   email text,
@@ -71,23 +75,30 @@ create table if not exists public.user_state (
 );
 
 -- ── Row Level Security ──
-alter table public.users enable row level security;
+alter table public.profiles enable row level security;
 alter table public.user_state enable row level security;
 
--- Users: each user can only read/write their own row
-create policy "Users can view own user"
-  on public.users for select
+-- Drop old policies if they exist (idempotent re-run)
+drop policy if exists "Users can view own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Users can insert own profile" on public.profiles;
+drop policy if exists "Users can view own state" on public.user_state;
+drop policy if exists "Users can update own state" on public.user_state;
+drop policy if exists "Users can insert own state" on public.user_state;
+
+-- Recreate policies
+create policy "Users can view own profile"
+  on public.profiles for select
   using (auth.uid() = id);
 
-create policy "Users can update own user"
-  on public.users for update
+create policy "Users can update own profile"
+  on public.profiles for update
   using (auth.uid() = id);
 
-create policy "Users can insert own user"
-  on public.users for insert
+create policy "Users can insert own profile"
+  on public.profiles for insert
   with check (auth.uid() = id);
 
--- User state: users can only read/write their own state
 create policy "Users can view own state"
   on public.user_state for select
   using (auth.uid() = user_id);
@@ -100,11 +111,11 @@ create policy "Users can insert own state"
   on public.user_state for insert
   with check (auth.uid() = user_id);
 
--- ── Auto-create user + state on signup ──
+-- ── Auto-create profile + state on signup ──
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.users (id, display_name, email)
+  insert into public.profiles (id, display_name, email)
   values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)), new.email);
 
   insert into public.user_state (user_id)
@@ -114,7 +125,6 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Drop trigger if exists, then create
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
@@ -129,9 +139,9 @@ begin
 end;
 $$ language plpgsql;
 
-drop trigger if exists update_users_updated_at on public.users;
-create trigger update_users_updated_at
-  before update on public.users
+drop trigger if exists update_profiles_updated_at on public.profiles;
+create trigger update_profiles_updated_at
+  before update on public.profiles
   for each row execute function public.update_updated_at();
 
 drop trigger if exists update_user_state_updated_at on public.user_state;
