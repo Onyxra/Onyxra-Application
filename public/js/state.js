@@ -192,9 +192,9 @@ window.STATE = {
       _userId = user.id;
       this.user = user;
 
-      // Get user profile
+      // Get user row from public.users
       const { data: profile } = await sb
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', _userId)
         .single();

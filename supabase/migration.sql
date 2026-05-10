@@ -3,8 +3,8 @@
 -- ║  Run this in Supabase SQL Editor (Dashboard → SQL Editor)       ║
 -- ╚══════════════════════════════════════════════════════════════════╝
 
--- ── Profiles table (extends auth.users) ──
-create table if not exists public.profiles (
+-- ── Users table (extends auth.users with display info) ──
+create table if not exists public.users (
   id uuid references auth.users(id) on delete cascade primary key,
   display_name text,
   email text,
@@ -71,20 +71,20 @@ create table if not exists public.user_state (
 );
 
 -- ── Row Level Security ──
-alter table public.profiles enable row level security;
+alter table public.users enable row level security;
 alter table public.user_state enable row level security;
 
--- Profiles: users can only read/write their own profile
-create policy "Users can view own profile"
-  on public.profiles for select
+-- Users: each user can only read/write their own row
+create policy "Users can view own user"
+  on public.users for select
   using (auth.uid() = id);
 
-create policy "Users can update own profile"
-  on public.profiles for update
+create policy "Users can update own user"
+  on public.users for update
   using (auth.uid() = id);
 
-create policy "Users can insert own profile"
-  on public.profiles for insert
+create policy "Users can insert own user"
+  on public.users for insert
   with check (auth.uid() = id);
 
 -- User state: users can only read/write their own state
@@ -100,11 +100,11 @@ create policy "Users can insert own state"
   on public.user_state for insert
   with check (auth.uid() = user_id);
 
--- ── Auto-create profile + state on signup ──
+-- ── Auto-create user + state on signup ──
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, display_name, email)
+  insert into public.users (id, display_name, email)
   values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)), new.email);
 
   insert into public.user_state (user_id)
@@ -129,9 +129,9 @@ begin
 end;
 $$ language plpgsql;
 
-drop trigger if exists update_profiles_updated_at on public.profiles;
-create trigger update_profiles_updated_at
-  before update on public.profiles
+drop trigger if exists update_users_updated_at on public.users;
+create trigger update_users_updated_at
+  before update on public.users
   for each row execute function public.update_updated_at();
 
 drop trigger if exists update_user_state_updated_at on public.user_state;
