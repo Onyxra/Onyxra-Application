@@ -22,15 +22,11 @@ window.registerPage('settings', function initSettings() {
           background:var(--accent);color:#000;
           font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;
           display:flex;align-items:center;justify-content:center;
-          flex-shrink:0;letter-spacing:1px">KO</div>
+          flex-shrink:0;letter-spacing:1px" id="settingsAvatar">--</div>
         <div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">Koltyn</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px">Life Operating System</div>
-          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-            <span class="badge badge-accent">$50K MRR</span>
-            <span class="badge" style="background:rgba(255,255,255,0.07);color:var(--fg)">200 lbs</span>
-            <span class="badge" style="background:rgba(255,255,255,0.07);color:var(--fg)">15% BF</span>
-          </div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1" id="settingsName">User</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">Onyxra</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px" id="settingsEmail"></div>
         </div>
       </div>
     </div>
@@ -130,10 +126,9 @@ window.registerPage('settings', function initSettings() {
       </div>
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px">
         ${[
-          ['App',       'Koltyn OS'],
+          ['App',       'Onyxra'],
           ['Version',   '1.0.0'],
-          ['Built by',  'Koltyn'],
-          ['Storage',   'IndexedDB (local, offline-first)'],
+          ['Storage',   'Supabase (cloud-synced)'],
           ['PWA',       'Installable · Works offline'],
         ].map(([k, v]) => `
           <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
@@ -189,7 +184,7 @@ window.registerPage('settings', function initSettings() {
       await STATE.importFromFile(file);
       showMsg('Data imported successfully. Reload the page to apply.');
     } catch {
-      showMsg('Import failed — make sure the file is a valid Koltyn OS export.');
+      showMsg('Import failed — make sure the file is a valid Onyxra export.');
     }
   });
 
@@ -197,7 +192,6 @@ window.registerPage('settings', function initSettings() {
   inner.querySelector('#resetDataBtn').addEventListener('click', () => {
     if (!confirm('This will permanently delete all your saved data and reset to defaults. Are you sure?')) return;
     if (!confirm('Second confirmation: ALL data will be lost. Continue?')) return;
-    indexedDB.deleteDatabase('koltyn-os');
     showMsg('Data cleared. Reloading...');
     setTimeout(() => location.reload(), 1200);
   });
@@ -208,6 +202,33 @@ window.registerPage('settings', function initSettings() {
     el.style.display = 'block';
     setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
+
+  /* ── Populate user info from STATE ── */
+  if (STATE.profile) {
+    const name = STATE.profile.display_name || 'User';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const setEl = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    setEl('settingsAvatar', initials);
+    setEl('settingsName', name);
+    setEl('settingsEmail', STATE.user?.email || '');
+  }
+
+  /* ── Sign Out button ── */
+  const signOutCard = document.createElement('div');
+  signOutCard.className = 'card';
+  signOutCard.style.cssText = 'margin-top:16px;overflow:hidden';
+  signOutCard.innerHTML = `
+    <button id="signOutBtn" style="
+      width:100%;padding:16px 20px;
+      background:none;border:none;
+      color:#ef5350;font-family:'Rajdhani',sans-serif;
+      font-size:14px;font-weight:700;letter-spacing:1px;
+      cursor:pointer;text-align:center;
+    ">Sign Out</button>`;
+  inner.appendChild(signOutCard);
+  document.getElementById('signOutBtn').addEventListener('click', () => {
+    if (confirm('Sign out of Onyxra?')) STATE.signOut();
+  });
 
 });
 

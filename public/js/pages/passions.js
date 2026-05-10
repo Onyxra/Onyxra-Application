@@ -1421,8 +1421,28 @@ window.registerPage('passions', function initPassions() {
 });
 
 (async function boot() {
+  // Wait for Supabase client to be injected by React
+  let retries = 0;
+  while (!window.__supabase && retries < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+
   await STATE.load();
+
+  // Populate user profile in nav/drawer
+  if (STATE.profile) {
+    const name = STATE.profile.display_name || STATE.user?.email?.split('@')[0] || 'User';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+    const setEl = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    setEl('drawerAvatarInitials', initials);
+    setEl('drawerProfileName', name);
+    setEl('navProfileAvatar', initials);
+    setEl('navProfileName', name);
+  }
+
   const hash  = window.location.hash.replace('#', '');
-  const valid = ['dashboard','nutrition','workout','business','wealth','passions'];
+  const valid = ['dashboard','nutrition','workout','business','wealth','passions','settings'];
   navigateTo(valid.includes(hash) ? hash : 'dashboard');
 })();

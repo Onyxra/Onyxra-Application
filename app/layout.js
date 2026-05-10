@@ -8,13 +8,13 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: 'Koltyn OS',
+  title: 'Onyxra',
   description: 'Personal Life Operating System — Nutrition, Workout, Business, Wealth, Creative, Vision',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Koltyn OS',
+    title: 'Onyxra',
   },
   icons: {
     icon: [

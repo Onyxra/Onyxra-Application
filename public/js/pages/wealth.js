@@ -7,7 +7,7 @@
 
 window.registerPage('wealth', function initWealth() {
 
-  const STORAGE_KEY = 'koltyn_wealth_v1';
+  const STORAGE_KEY = 'onyxra_wealth_v1';
 
   /* ── Category definitions ── */
   const CATEGORIES = [

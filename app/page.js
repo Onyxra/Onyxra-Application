@@ -2,10 +2,15 @@
 
 import { useEffect } from 'react';
 import Script from 'next/script';
+import { getSupabase } from '../lib/supabase';
 
 export default function Home() {
 
   useEffect(() => {
+    // Initialize Supabase and expose to vanilla JS
+    const supabase = getSupabase();
+    window.__supabase = supabase;
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(reg => console.log('[SW] Registered, scope:', reg.scope))
@@ -35,16 +40,16 @@ export default function Home() {
       <div className="drawer-backdrop" id="drawerBackdrop"></div>
       <div className="profile-drawer" id="profileDrawer">
         <div className="drawer-profile-header">
-          <div className="drawer-avatar">KO</div>
+          <div className="drawer-avatar" id="drawerAvatarInitials">--</div>
           <div className="drawer-profile-info">
-            <div className="drawer-profile-name">Koltyn</div>
-            <div className="drawer-profile-sub">Life Operating System</div>
+            <div className="drawer-profile-name" id="drawerProfileName">User</div>
+            <div className="drawer-profile-sub">Onyxra</div>
           </div>
           <button className="drawer-close-btn" id="drawerClose" aria-label="Close">✕</button>
         </div>
         <div className="drawer-north-star">
           <div className="drawer-ns-label">North Star</div>
-          <div className="drawer-ns-text">$50K MRR · 200 lbs · 15% BF</div>
+          <div className="drawer-ns-text" id="drawerNorthStar">Set your goals</div>
         </div>
         <div className="drawer-divider"></div>
         <div className="drawer-nav">
@@ -95,13 +100,10 @@ export default function Home() {
               </linearGradient>
             </defs>
             <rect width="36" height="36" rx="9" fill="url(#navLogoGrad)"/>
-            <line x1="11" y1="9" x2="11" y2="27" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
-            <line x1="11" y1="18" x2="25" y2="9" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
-            <line x1="11" y1="18" x2="26" y2="27" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
-            <circle cx="30" cy="29" r="2.2" fill="#fff" opacity="0.5"/>
+            <text x="18" y="24" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="700" fontFamily="Rajdhani, sans-serif">O</text>
           </svg>
           <div className="nav-brand-text">
-            <div className="nav-brand-name">Koltyn OS</div>
+            <div className="nav-brand-name">Onyxra</div>
             <div className="nav-brand-sub">Life Operating System</div>
           </div>
         </div>
@@ -142,10 +144,10 @@ export default function Home() {
         </div>
 
         <div className="nav-profile">
-          <div className="nav-profile-avatar">KO</div>
+          <div className="nav-profile-avatar" id="navProfileAvatar">--</div>
           <div className="nav-profile-info">
-            <div className="nav-profile-name">Koltyn</div>
-            <div className="nav-profile-goal">$50K · 200 lbs · 15% BF</div>
+            <div className="nav-profile-name" id="navProfileName">User</div>
+            <div className="nav-profile-goal" id="navProfileGoal"></div>
           </div>
         </div>
       </nav>

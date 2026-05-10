@@ -12,12 +12,12 @@ window.APP_DATA = {
 
   /* ── Profile ─────────────────────────────────────────────────── */
   profile: {
-    name:       'Koltyn',
-    appTitle:   'Koltyn OS',
+    name:       '',
+    appTitle:   'Onyxra',
     appSubtitle:'Life Operating System',
-    navGoal:    '$50K MRR · 200 lbs · 15% BF',
-    northStar:  'Build Envosta to $50K MRR · Get to 200 lbs and 15% body fat · Unlock Press to Handstand and Muscle Up',
-    northStarPillars: ['$50K MRR', '200 lbs · 15% BF', 'Press to Handstand', 'Muscle Up'],
+    navGoal:    '',
+    northStar:  '',
+    northStarPillars: [],
   },
 
   /* ── Dashboard ───────────────────────────────────────────────── */

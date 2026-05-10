@@ -1,89 +1,45 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  KOLTYN OS — state.js                                           ║
- * ║  Live session state: in-memory + IndexedDB persistence          ║
+ * ║  ONYXRA — state.js                                              ║
+ * ║  Live session state: in-memory + Supabase persistence           ║
  * ╠══════════════════════════════════════════════════════════════════╣
  * ║  HOW STATE WORKS                                                ║
  * ║                                                                  ║
- * ║  1. APP_DATA (data.js) = static master template. Read-only.    ║
- * ║     It is the "factory defaults" file — hosted on GitHub.       ║
- * ║     Pages read blueprint templates, meal lists, etc. from here. ║
+ * ║  1. APP_DATA (data.js) = static template data. Read-only.       ║
  * ║                                                                  ║
  * ║  2. window.STATE = live in-memory object. Single source of      ║
- * ║     truth for ALL runtime data — priorities, venture progress,  ║
- * ║     workout logs, custom meals, step completions, notes.        ║
- * ║     UI always reads from STATE; interactions always write to it.║
+ * ║     truth for ALL runtime data.                                  ║
  * ║                                                                  ║
- * ║  3. IndexedDB (db: koltyn-os, store: state) = persistence.     ║
- * ║     STATE is loaded from IDB on startup. If empty, it is        ║
- * ║     bootstrapped from APP_DATA defaults. Every mutation calls   ║
- * ║     STATE.save() which writes to IDB asynchronously.           ║
+ * ║  3. Supabase (user_state table) = persistence.                   ║
+ * ║     STATE is loaded from Supabase on startup. Every mutation     ║
+ * ║     calls STATE.save() which writes to Supabase asynchronously. ║
  * ║                                                                  ║
- * ║  4. Export = full STATE snapshot as downloadable JSON.          ║
- * ║     To update the live master JSON on GitHub: download the      ║
- * ║     snapshot, commit it as data.js (adjust format), and push.  ║
- * ║                                                                  ║
- * ║  5. Import = restore STATE from a previously exported file.     ║
- * ║     Useful for migrating to another device or restoring a       ║
- * ║     previous session.                                           ║
- * ║                                                                  ║
- * ║  HIERARCHY                                                       ║
- * ║    Master Hormozi Roadmap (overarching, in state.business)      ║
- * ║      └── Ventures  (state.business.ventures[])                  ║
- * ║            └── Blueprints  (venture.blueprints[])               ║
- * ║                  └── Steps  (blueprint.steps[])                 ║
- * ║                                                                  ║
- * ║  FORMS → STATE → IDB                                            ║
- * ║    All form submissions call a STATE mutator (e.g.              ║
- * ║    STATE.setWeeklyPriority(), STATE.completeStep()) which       ║
- * ║    updates the in-memory object then calls STATE.save().        ║
+ * ║  FORMS → STATE → Supabase                                       ║
+ * ║    All form submissions call a STATE mutator which updates the  ║
+ * ║    in-memory object then calls STATE.save().                    ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
 /* ──────────────────────────────────────────────────────────────────
-   IndexedDB wrapper — minimal, promise-based
+   Supabase client — initialized from env vars set on the page
 ────────────────────────────────────────────────────────────────── */
-const _DB_NAME    = 'koltyn-os';
-const _DB_VERSION = 1;
-const _STORE      = 'state';
-const _STATE_KEY  = 'main';
+let _supabase = null;
+let _userId = null;
+let _saveTimer = null;
 
-function _openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(_DB_NAME, _DB_VERSION);
-    req.onupgradeneeded = e => {
-      e.target.result.createObjectStore(_STORE);
-    };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-
-function _idbGet(db) {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(_STORE, 'readonly');
-    const req = tx.objectStore(_STORE).get(_STATE_KEY);
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-
-function _idbPut(db, value) {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(_STORE, 'readwrite');
-    const req = tx.objectStore(_STORE).put(value, _STATE_KEY);
-    req.onsuccess = () => resolve();
-    req.onerror   = e  => reject(e.target.error);
-  });
+function _getSupabase() {
+  if (_supabase) return _supabase;
+  if (typeof window !== 'undefined' && window.__supabase) {
+    _supabase = window.__supabase;
+    return _supabase;
+  }
+  return null;
 }
 
 /* ──────────────────────────────────────────────────────────────────
    Default state bootstrap
-   Called when IndexedDB has no saved state yet (first run).
-   All values come from APP_DATA so personalisation stays in data.js.
 ────────────────────────────────────────────────────────────────── */
 function _defaultState() {
-  /* Build blueprint step arrays for each template */
   function bpSteps(templateId) {
     const tpl = (APP_DATA.blueprintTemplates || []).find(t => t.id === templateId);
     if (!tpl) return [];
@@ -96,7 +52,6 @@ function _defaultState() {
     _version:     2,
     _lastUpdated: null,
 
-    /* ── Dashboard ── */
     dashboard: {
       weeklyTopPriority:    '',
       weeklyPriorityDate:   null,
@@ -106,14 +61,10 @@ function _defaultState() {
       customHabits:         null,
     },
 
-    /* ── Business ──
-       hierarchy: ventures[] → blueprints[] → steps[]
-       The first venture comes pre-seeded from APP_DATA.
-    */
     business: {
-      activeVentureId:  APP_DATA.business.ventures[0]?.id || null,
+      activeVentureId:  (APP_DATA.business?.ventures?.[0]?.id) || null,
       activeBlueprintId: null,
-      ventures: (APP_DATA.business.ventures || []).map(v => ({
+      ventures: (APP_DATA.business?.ventures || []).map(v => ({
         id:            v.id,
         name:          v.name,
         icon:          v.icon || '🚀',
@@ -131,17 +82,6 @@ function _defaultState() {
       })),
     },
 
-    /* ── Workout ──
-       schedule = ordered day types for one full week cycle.
-       Order: Upper → Lower → Rest → Pull → Push → Legs → Rest → repeat.
-       A Rest day follows Lower (taxing on posterior chain) and Legs.
-       currentDayIndex advances when user logs a workout or rest day.
-       cycleCount  = number of full cycles completed in the current phase.
-       weekNumber  = absolute week (1–12); auto-increments each cycle.
-       Recovery phase = 5 cycles (Weeks 1–5).
-       Ramping phase  = 7 cycles (Weeks 6–12).
-       After Ramping completes, program resets to Recovery from week 1.
-    */
     workout: {
       currentPhase:    'recovery',
       schedule:        ['Upper', 'Lower', 'Rest', 'Pull', 'Push', 'Legs', 'Rest'],
@@ -155,34 +95,20 @@ function _defaultState() {
       activeRoutineId:    null,
       favoriteExercises:  [],
       bodyGoals: { currentWeight: '', goalWeight: '', currentBF: '', goalBF: '' },
-      /* log entry shape:
-         { date, dayName, phase, completedExercises: ['Ex Name',...], notes }
-         logbook entry shape:
-         { date, dayName, phase, exercises: [{name, sets:[{reps,weight,duration,notes}]}] }
-         progressPics entry shape:
-         { date, dataUrl, note }
-         routine shape:
-         { id, name, description, createdAt } */
     },
 
-    /* ── Nutrition ── */
     nutrition: {
-      currentPhase: 'bulk',
+      currentPhase: 'maintain',
       selectedMeals: {
         bulk:     [null, null, null, null],
         maintain: [null, null, null, null],
         cut:      [null, null, null, null],
       },
-      /* customMeals: user-added meals beyond the 10 in APP_DATA.
-         Structure mirrors APP_DATA.nutrition.meals:
-           { phase: [ [meal, ...], [meal,...], ... ] }  (4 slots)
-         Each slot is an array of additional meal objects. */
       customMeals: {
         bulk:     [[], [], [], []],
         maintain: [[], [], [], []],
         cut:      [[], [], [], []],
       },
-      /* Macro calculator inputs (set from Settings page) */
       calcWeight:      175,
       calcHeight:      70,
       calcGoal:        'maintain',
@@ -198,67 +124,126 @@ function _defaultState() {
       mealDistribution: [25, 30, 35, 10],
     },
 
-    /* ── Passions ──
-       hierarchy: passions[] each with notes, goals[], journal[]
-       Music passion is pre-seeded and maps to the rich APP_DATA.creative data.
-    */
     passions: {
-      activePassionId: 'music',
-      passions: [
-        {
-          id:            'music',
-          name:          'Music',
-          icon:          '🎸',
-          blueprintType: 'music',
-          description:   'Guitar · Songwriting · Performance',
-          notes:         '',
-          goals:         [],
-          journal:       [],
-        },
-      ],
+      activePassionId: null,
+      passions: [],
     },
+
+    wealth: {},
   };
 }
 
 /* ──────────────────────────────────────────────────────────────────
    STATE — the global in-memory object
-   Exposed as window.STATE so every page module can use it.
 ────────────────────────────────────────────────────────────────── */
-let _db = null;  /* IndexedDB connection, set during init */
-
 window.STATE = {
 
-  /* Raw data — populated by STATE.load() on app boot */
   data: null,
+  user: null,
 
   /* ── Persistence ── */
 
-  /** Persist current data to IndexedDB (fire-and-forget). */
+  /** Persist current data to Supabase (debounced, fire-and-forget). */
   save() {
-    if (!_db || !this.data) return;
+    if (!this.data) return;
     this.data._lastUpdated = new Date().toISOString();
-    _idbPut(_db, this.data).catch(err => console.warn('[STATE] IDB write failed:', err));
+
+    // Debounce writes — wait 500ms after last mutation before saving
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => {
+      this._writeToSupabase();
+    }, 500);
   },
 
-  /** Load state from IndexedDB, falling back to default. Returns a Promise. */
+  async _writeToSupabase() {
+    const sb = _getSupabase();
+    if (!sb || !_userId) {
+      console.warn('[STATE] No Supabase connection, save skipped');
+      return;
+    }
+    try {
+      const { error } = await sb
+        .from('user_state')
+        .update({
+          dashboard: this.data.dashboard,
+          workout:   this.data.workout,
+          nutrition: this.data.nutrition,
+          business:  this.data.business,
+          passions:  this.data.passions,
+          wealth:    this.data.wealth || {},
+        })
+        .eq('user_id', _userId);
+      if (error) throw error;
+      console.log('[STATE] Saved to Supabase');
+    } catch (err) {
+      console.warn('[STATE] Supabase write failed:', err);
+    }
+  },
+
+  /** Load state from Supabase, falling back to defaults. */
   async load() {
     try {
-      _db = await _openDB();
-      const saved = await _idbGet(_db);
-      this.data = saved || _defaultState();
+      const sb = _getSupabase();
+      if (!sb) throw new Error('No Supabase client');
 
-      /* ── State migration: safely add fields introduced in newer versions ── */
-      if (!this.data.dashboard.weeklyTopPriority) {
-        this.data.dashboard.weeklyTopPriority = '';
+      // Get current user
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      _userId = user.id;
+      this.user = user;
+
+      // Get user profile
+      const { data: profile } = await sb
+        .from('profiles')
+        .select('*')
+        .eq('id', _userId)
+        .single();
+      this.profile = profile;
+
+      // Get user state
+      const { data: stateRow, error } = await sb
+        .from('user_state')
+        .select('*')
+        .eq('user_id', _userId)
+        .single();
+
+      if (error || !stateRow) {
+        console.log('[STATE] No saved state, using defaults');
+        this.data = _defaultState();
+        return;
       }
-      if (!Array.isArray(this.data.dashboard.tasks)) this.data.dashboard.tasks = [];
-      if (this.data.dashboard.customHabits === undefined) this.data.dashboard.customHabits = null;
+
+      // Rebuild data from DB columns
+      this.data = {
+        _version: stateRow.version || 2,
+        _lastUpdated: stateRow.updated_at,
+        dashboard: stateRow.dashboard || _defaultState().dashboard,
+        workout:   stateRow.workout   || _defaultState().workout,
+        nutrition: stateRow.nutrition || _defaultState().nutrition,
+        business:  stateRow.business  || _defaultState().business,
+        passions:  stateRow.passions  || _defaultState().passions,
+        wealth:    stateRow.wealth    || {},
+      };
+
+      /* ── State migration: safely add fields ── */
+      const ds = this.data.dashboard;
+      if (!ds.weeklyTopPriority) ds.weeklyTopPriority = '';
+      if (!Array.isArray(ds.tasks)) ds.tasks = [];
+      if (ds.customHabits === undefined) ds.customHabits = null;
+
       const wk = this.data.workout;
-      if (!Array.isArray(wk.logbook))      wk.logbook      = [];
-      if (!Array.isArray(wk.progressPics)) wk.progressPics = [];
-      if (!Array.isArray(wk.routines))           wk.routines           = [];
-      if (!Array.isArray(wk.favoriteExercises)) wk.favoriteExercises  = [];
-      if (wk.activeRoutineId === undefined) wk.activeRoutineId = null;
+      if (!Array.isArray(wk.logbook))           wk.logbook           = [];
+      if (!Array.isArray(wk.progressPics))      wk.progressPics      = [];
+      if (!Array.isArray(wk.routines))           wk.routines          = [];
+      if (!Array.isArray(wk.favoriteExercises)) wk.favoriteExercises = [];
+      if (wk.activeRoutineId === undefined)     wk.activeRoutineId   = null;
+      if (wk.cycleCount  === undefined)         wk.cycleCount        = 0;
+      if (wk.weekNumber  === undefined)         wk.weekNumber        = 1;
+      if (wk.schedule && wk.schedule[0] === 'Pull') {
+        wk.schedule        = ['Upper', 'Lower', 'Rest', 'Pull', 'Push', 'Legs', 'Rest'];
+        wk.currentDayIndex = 0;
+      }
+
       const nt = this.data.nutrition;
       if (nt.calcWeight      === undefined) nt.calcWeight      = 175;
       if (nt.calcHeight      === undefined) nt.calcHeight      = 70;
@@ -274,52 +259,33 @@ window.STATE = {
       if (typeof nt.slotOptions !== 'object' || Array.isArray(nt.slotOptions)) nt.slotOptions = { 0:[], 1:[], 2:[], 3:[] };
       [0,1,2,3].forEach(i => { if (!Array.isArray(nt.slotOptions[i])) nt.slotOptions[i] = []; });
       if (!Array.isArray(nt.mealDistribution) || nt.mealDistribution.length !== 4) nt.mealDistribution = [25, 30, 35, 10];
-      if (wk.cycleCount  === undefined)    wk.cycleCount   = 0;
-      if (wk.weekNumber  === undefined)    wk.weekNumber   = 1;
-      /* Migrate old Pull-first schedule to the new Upper-first schedule */
-      if (wk.schedule && wk.schedule[0] === 'Pull') {
-        wk.schedule        = ['Upper', 'Lower', 'Rest', 'Pull', 'Push', 'Legs', 'Rest'];
-        wk.currentDayIndex = 0;
-      }
-      /* Migrate: add passions if not present */
+
       if (!this.data.passions) this.data.passions = _defaultState().passions;
-      /* Migrate: stamp blueprintType on existing passions that predate this field */
       (this.data.passions.passions || []).forEach(p => {
         if (!p.blueprintType) p.blueprintType = p.id === 'music' ? 'music' : 'general';
         if (!p.blueprints) p.blueprints = [];
       });
-      console.log('[STATE] Loaded from', saved ? 'IndexedDB' : 'defaults');
+
+      console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
     } catch (err) {
-      console.warn('[STATE] IDB unavailable, using defaults:', err);
+      console.warn('[STATE] Load failed, using defaults:', err.message);
       this.data = _defaultState();
     }
   },
 
   /* ── Export / Import ── */
 
-  /**
-   * Download current STATE as a JSON file.
-   * The exported file is a full snapshot. To use it as the new
-   * master data source, it can be imported on another device via
-   * STATE.importFromFile(), or adapted for data.js and committed to GitHub.
-   */
   exportJSON() {
     const json = JSON.stringify(this.data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = 'koltyn-os-state-' + new Date().toISOString().slice(0,10) + '.json';
+    a.download = 'onyxra-state-' + new Date().toISOString().slice(0,10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
   },
 
-  /**
-   * Restore STATE from a user-selected JSON file.
-   * Triggers a file picker, reads the file, validates, then replaces
-   * in-memory data and persists to IndexedDB.
-   * @returns {Promise<void>}
-   */
   importFromFile() {
     return new Promise((resolve, reject) => {
       const input    = document.createElement('input');
@@ -448,9 +414,7 @@ window.STATE = {
     if (!tpl) return null;
     const id = 'pbp_' + Date.now();
     p.blueprints.push({
-      id,
-      templateId,
-      name: tpl.name,
+      id, templateId, name: tpl.name,
       steps: tpl.steps.map((s, i) => ({ idx: i, completed: false, completedAt: null, notes: '' })),
     });
     this.save();
@@ -539,15 +503,10 @@ window.STATE = {
       completedExercises: completedExercises || [],
       notes: notes || '',
     });
-    /* Keep last 90 summary log entries */
     if (log.length > 90) log.length = 90;
-    /* If completing a specific day (ahead or behind schedule), jump to it first */
     if (fromDayIdx !== undefined) s.currentDayIndex = fromDayIdx;
-    /* Advance to the next day */
     const modLen = scheduleLen || s.schedule.length;
     s.currentDayIndex = (s.currentDayIndex + 1) % modLen;
-    /* When index wraps back to 0, a full cycle is complete.
-       This drives weekNumber and cycleCount which gate phase transitions. */
     if (s.currentDayIndex === 0) {
       s.cycleCount = (s.cycleCount || 0) + 1;
       s.weekNumber = (s.weekNumber || 1) + 1;
@@ -556,22 +515,15 @@ window.STATE = {
   },
 
   setWorkoutPhase(phase) {
-    this.data.workout.currentPhase = phase; /* 'recovery' | 'ramping' */
+    this.data.workout.currentPhase = phase;
     this.save();
   },
 
-  /**
-   * Advance to the next phase once the current phase cycle limit is met.
-   * Recovery (5 cycles) → Ramping.
-   * Ramping  (7 cycles) → Recovery (12-week program resets).
-   * Resets cycleCount and currentDayIndex to 0; persists to IDB.
-   */
   advancePhase() {
     const s = this.data.workout;
     if (s.currentPhase === 'recovery') {
       s.currentPhase = 'ramping';
     } else {
-      /* After Ramping completes the program resets to Recovery week 1 */
       s.currentPhase = 'recovery';
       s.weekNumber   = 1;
     }
@@ -580,13 +532,6 @@ window.STATE = {
     this.save();
   },
 
-  /**
-   * Add a detailed logbook entry with per-exercise set data.
-   * Kept separate from the summary log[] so the Logbook tab can display
-   * richer data (sets × reps × weight) independent of the summary feed.
-   * entry: { dayName, phase, exercises:[{name, sets:[{reps,weight,duration,notes}]}] }
-   * Persisted to IDB via save().
-   */
   addLogbookEntry(entry) {
     const s = this.data.workout;
     if (!Array.isArray(s.logbook)) s.logbook = [];
@@ -595,8 +540,6 @@ window.STATE = {
     this.save();
   },
 
-  /* Delete all sets for an exercise on a given date. If it was the only
-     exercise in that entry, remove the entire entry. */
   deleteLogbookExercise(date, exName) {
     const s = this.data.workout;
     const idx = (s.logbook || []).findIndex(e => e.date === date);
@@ -607,7 +550,6 @@ window.STATE = {
     this.save();
   },
 
-  /* Update weight/reps for a single set within an exercise session. */
   updateLogbookSet(date, exName, setIdx, data) {
     const entry = (this.data.workout.logbook || []).find(e => e.date === date);
     if (!entry) return;
@@ -617,7 +559,6 @@ window.STATE = {
     this.save();
   },
 
-  /* Delete a single set. Cascades to remove exercise / entry if now empty. */
   deleteLogbookSet(date, exName, setIdx) {
     const s = this.data.workout;
     const entryIdx = (s.logbook || []).findIndex(e => e.date === date);
@@ -633,7 +574,6 @@ window.STATE = {
     this.save();
   },
 
-  /* Toggle an exercise name in the favourites list. */
   toggleFavoriteExercise(name) {
     const favs = this.data.workout.favoriteExercises || (this.data.workout.favoriteExercises = []);
     const idx = favs.indexOf(name);
@@ -641,7 +581,6 @@ window.STATE = {
     this.save();
   },
 
-  /* Append a blank set to an existing exercise session. */
   addLogbookSet(date, exName) {
     const entry = (this.data.workout.logbook || []).find(e => e.date === date);
     if (!entry) return;
@@ -651,12 +590,6 @@ window.STATE = {
     this.save();
   },
 
-  /**
-   * Store a progress picture as a base64 data URL.
-   * Images are stored inline in STATE so they survive export/import as JSON.
-   * Note: large images will make the exported JSON file much larger.
-   * Persisted to IDB via save().
-   */
   saveBodyGoals(obj) {
     if (!this.data.workout.bodyGoals) this.data.workout.bodyGoals = {};
     Object.assign(this.data.workout.bodyGoals, obj);
@@ -693,12 +626,10 @@ window.STATE = {
     if (!Array.isArray(wk.routines)) wk.routines = [];
     wk.routines.push({
       id: rid, name, description: description || '',
-      custom: true,
-      repeatable: true,
+      custom: true, repeatable: true,
       gradient: 'linear-gradient(135deg,#7c6af7 0%,#4a3ab8 100%)',
       icon: '📋',
       createdAt: new Date().toISOString(),
-      /* stages: [{ id, name, weekCount, dayRoutines:[{ id, name, label, sections:{ warmup,main,stretching } }] }] */
       stages: [],
     });
     if (!wk.activeRoutineId) wk.activeRoutineId = rid;
@@ -783,7 +714,6 @@ window.STATE = {
     }
   },
 
-  /* ── Food Library ── */
   addFoodItem(food) {
     food.id = 'fl_' + Date.now();
     food.createdAt = new Date().toISOString();
@@ -796,7 +726,6 @@ window.STATE = {
     this.save();
   },
 
-  /* ── User Meals ── */
   saveUserMeal(meal) {
     const nt = this.data.nutrition;
     if (meal.id) {
@@ -813,7 +742,6 @@ window.STATE = {
   removeUserMeal(id) {
     const nt = this.data.nutrition;
     nt.userMeals = nt.userMeals.filter(m => m.id !== id);
-    /* clear from any mealPlan slots */
     Object.values(nt.mealPlan).forEach(day => {
       ['breakfast','lunch','dinner','snack'].forEach(slot => {
         if (day[slot] === id) day[slot] = null;
@@ -822,7 +750,6 @@ window.STATE = {
     this.save();
   },
 
-  /* ── Meal Plan ── */
   assignMealToSlot(date, slot, mealId) {
     const nt = this.data.nutrition;
     if (!nt.mealPlan[date]) nt.mealPlan[date] = { breakfast:null, lunch:null, dinner:null, snack:null };
@@ -871,14 +798,20 @@ window.STATE = {
     return v?.blueprints.find(b => b.id === blueprintId);
   },
 
-  /** Current workout day name (e.g. 'Pull', 'Rest') */
   get currentWorkoutDay() {
     const s = this.data.workout;
     return s.schedule[s.currentDayIndex % s.schedule.length];
   },
 
-  /** Active venture object */
   get activeVenture() {
     return this._getVenture(this.data.business.activeVentureId);
+  },
+
+  /* ── Auth helpers ── */
+
+  async signOut() {
+    const sb = _getSupabase();
+    if (sb) await sb.auth.signOut();
+    window.location.href = '/login';
   },
 };

@@ -7,8 +7,8 @@
  *   Anthropic  → Network Only (never cache AI responses)
  */
 
-const CACHE_NAME = 'koltyn-os-v6';
-const FONT_CACHE = 'koltyn-fonts-v1';
+const CACHE_NAME = 'onyxra-v1';
+const FONT_CACHE = 'onyxra-fonts-v1';
 
 const APP_SHELL = [
   '/',
