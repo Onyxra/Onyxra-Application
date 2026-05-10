@@ -9,9 +9,22 @@ export default function Home() {
   useEffect(() => {
     // Initialize Supabase and expose to vanilla JS
     const supabase = getSupabase();
-    if (supabase) window.__supabase = supabase;
+    if (supabase) {
+      window.__supabase = supabase;
+    } else {
+      // No Supabase client → can't auth → bounce to login
+      console.error('[Onyxra] Supabase env vars missing. Redirecting to /login.');
+      window.location.href = '/login';
+      return;
+    }
 
+    // Kill any old service worker caches from previous versions
     if ('serviceWorker' in navigator) {
+      // Force-update existing SW
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.update());
+      });
+      // Register the new SW
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(reg => console.log('[SW] Registered, scope:', reg.scope))
         .catch(err => console.warn('[SW] Registration failed:', err));
@@ -315,16 +328,16 @@ export default function Home() {
       </main>
 
       {/* ══ SCRIPTS — loaded in order ══ */}
-      <Script src="/js/data.js" strategy="beforeInteractive" />
-      <Script src="/js/state.js" strategy="beforeInteractive" />
-      <Script src="/js/app.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/dashboard.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/nutrition.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/workout.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/business.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/wealth.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/passions.js" strategy="beforeInteractive" />
-      <Script src="/js/pages/settings.js" strategy="beforeInteractive" />
+      <Script src="/js/data.js" strategy="afterInteractive" />
+      <Script src="/js/state.js" strategy="afterInteractive" />
+      <Script src="/js/app.js" strategy="afterInteractive" />
+      <Script src="/js/pages/dashboard.js" strategy="afterInteractive" />
+      <Script src="/js/pages/nutrition.js" strategy="afterInteractive" />
+      <Script src="/js/pages/workout.js" strategy="afterInteractive" />
+      <Script src="/js/pages/business.js" strategy="afterInteractive" />
+      <Script src="/js/pages/wealth.js" strategy="afterInteractive" />
+      <Script src="/js/pages/passions.js" strategy="afterInteractive" />
+      <Script src="/js/pages/settings.js" strategy="afterInteractive" />
     </>
   );
 }

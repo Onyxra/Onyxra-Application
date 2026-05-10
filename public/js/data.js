@@ -22,83 +22,37 @@ window.APP_DATA = {
 
   /* ── Dashboard ───────────────────────────────────────────────── */
   dashboard: {
-    /* current / goal are numeric → drive radial ring fill in dashboard.
-       invert:true = lower is better (body fat — goal < current).
-       color = ring stroke colour. value = display string (can differ from current). */
-    stats: [
-      { label:'Body Weight', value:'176',    unit:'lbs', note:'Goal: 200 lbs',    current:176,   goal:200,    color:'#ff6b35', invert:false },
-      { label:'Body Fat',    value:'16',     unit:'%',   note:'Goal: 15%',         current:16,    goal:15,     color:'#f5c842', invert:true  },
-      { label:'Envosta MRR', value:'$0',     unit:'',    note:'Goal: $50K/mo',     current:0,     goal:50000,  color:'#7c6af7', invert:false },
-      { label:'Songs Ready', value:'8',      unit:'',    note:'Target: 10 ready',  current:8,     goal:10,     color:'#f06292', invert:false },
-      { label:'Net Worth',   value:'$12.5K', unit:'',    note:'Goal: $100K',       current:12500, goal:100000, color:'#3ddc6e', invert:false },
-    ],
+    /* Default/sample stat template. Users override these in their own state. */
+    stats: [],
+    /* Default morning habits — generic starter list. Users can customize. */
     morningHabits: [
-      'Wake up before 9am',
-      'Rinse mouth + drink water / tea',
+      'Wake up at consistent time',
+      'Drink a glass of water',
       '15 minutes of sunlight',
-      'Review Daily Journal',
-      'Review Investments (crypto, stocks)',
-      'Check emails & messages',
-      'Quick stretch & maintenance (10 pull-ups, 30 push-ups, 30s L-sit, hip + shoulder + hamstring stretch)',
-      'Eat Meal 1 (Breakfast)',
-      '2 hours focused work on Envosta',
-      '1 hour workout',
+      'Review your daily priorities',
+      'Move your body — stretch or walk',
     ],
     todaysFocus: [
-      { title:'🏗️ Business', detail:"Build Envosta — talk to users, ship something" },
-      { title:'💪 Workout',  detail:"Recovery Phase — check workout page for today's day" },
-      { title:'🎸 Creative', detail:'30 min practice — fingerpicking + vocals' },
-      { title:'📚 Growth',   detail:'15 pages before bed' },
+      { title:'🏗️ Business', detail:'Set your top business priority for today' },
+      { title:'💪 Workout',  detail:"Check today's workout in the Workout page" },
+      { title:'🎯 Personal', detail:'Pick one thing that moves the needle today' },
+      { title:'📚 Growth',   detail:'Read or learn something new' },
     ],
   },
 
   /* ── Vision ──────────────────────────────────────────────────── */
+  /* Default vision board template. Users fill in their own dreams/goals/focus. */
   vision: {
-    overarchingGoal: 'Build Envosta to $50K MRR · Get to 200 lbs and 15% body fat · Unlock Press to Handstand and Muscle Up',
-    goalPillars: ['$50K MRR', '200 lbs', '15% BF', 'Press to Handstand', 'Muscle Up'],
+    overarchingGoal: '',
+    goalPillars: [],
     areas: [
-      {
-        icon:'💼', name:'Career & Business',
-        dream:  ['Envosta is a $50K MRR SaaS company running mostly without me','Known as the founder who built something real from scratch','Multiple successful ventures — not just one'],
-        oneYear:['Envosta at $10K MRR (Stage 1 graduation)','First 50 paying customers','Repeatable sales process in place'],
-        focus:  ['Build and ship v1 of Envosta','Talk to 10 target users','Close first 3 paying customers manually'],
-      },
-      {
-        icon:'💰', name:'Finance & Wealth',
-        dream:  ['Financially free — money works for me, not the other way','Index fund portfolio generating meaningful passive income','Never worry about money again — abundance mindset fully embodied'],
-        oneYear:['Envosta paying all personal expenses','Consistent monthly investment into index funds','Emergency fund fully stocked (6 months expenses)'],
-        focus:  ['Separate business and personal finances','Set up automatic index fund DCA','Track MRR and net worth weekly'],
-      },
-      {
-        icon:'💪', name:'Health & Fitness',
-        dream:  ['200 lbs, 15% body fat — athletic, powerful, lean','Press to handstand and muscle up achieved','Feel the best I\'ve ever felt — energy, strength, mobility'],
-        oneYear:['190 lbs, 16% body fat — clear visual progress','Handstand holds for 10 seconds','Consistent Jeff Nippard PPL — no missed weeks'],
-        focus:  ['Current: 176 lbs, 16% BF — add clean bulk calories','Complete full Recovery Phase (Weeks 1–5) with no skipped sessions','Nail morning routine: stretch + 10 pull-ups + 30 push-ups daily'],
-      },
-      {
-        icon:'❤️', name:'Relationships & Family',
-        dream:  ['Deep, authentic relationships — a small circle of people who truly know me','The kind of partner you don\'t settle for — when it\'s right it\'s obvious','Strong family bonds — present and intentional'],
-        oneYear:['Invest in existing friendships deliberately — plan something quarterly','Be fully present when with family — phone down, eyes up','Know what I actually value in a partner (write it out)'],
-        focus:  ['Schedule one intentional social thing per week','Call family member each week','Be more present — notice when I\'m distracted and course-correct'],
-      },
-      {
-        icon:'🧠', name:'Personal Growth',
-        dream:  ['Think clearly, decide quickly, execute consistently — uncommon self-mastery','Identity: builder, performer, athlete — not just one thing','Read 50+ books — ideas compound just like money'],
-        oneYear:['Read 12 books — one per month','Daily journalling habit — 5 min minimum','Meditation practice — 10 min daily'],
-        focus:  ['Morning review: journal + vision review + priorities for the day','Read 15 pages before bed every night','Write down 3 things I\'m grateful for each morning'],
-      },
-      {
-        icon:'🎸', name:'Music & Creativity',
-        dream:  ['Original songs that make people feel something real','Known locally as the guy worth watching — packed rooms','Album recorded — even if just for me'],
-        oneYear:['10 songs ready to perform — covers + originals','5 original songs with demos recorded','Regular bar gig rotation — monthly at minimum'],
-        focus:  ['Daily practice: 30 min minimum — fingerpicking + vocals + writing','Add one new song to setlist per month','Record a voice memo demo of "Rodeo Bones" this month'],
-      },
-      {
-        icon:'✈️', name:'Lifestyle & Adventure',
-        dream:  ['Surf good waves in multiple countries — Indo, Portugal, Central America','Horses as part of life — riding regularly, maybe own one day','Motorcycle trip across a country — no plan, just ride'],
-        oneYear:['One surf trip — even a domestic one counts','Ride a horse at least once','Plan the motorcycle route even if not executing yet'],
-        focus:  ['Research one surf destination — cost, season, flights','Find a local spot to ride horses — one session this quarter','Take the motorcycle out more — rides, not just errands'],
-      },
+      { icon:'💼', name:'Career & Business',      dream:[], oneYear:[], focus:[] },
+      { icon:'💰', name:'Finance & Wealth',       dream:[], oneYear:[], focus:[] },
+      { icon:'💪', name:'Health & Fitness',       dream:[], oneYear:[], focus:[] },
+      { icon:'❤️', name:'Relationships & Family', dream:[], oneYear:[], focus:[] },
+      { icon:'🧠', name:'Personal Growth',        dream:[], oneYear:[], focus:[] },
+      { icon:'🎨', name:'Creativity & Passions',  dream:[], oneYear:[], focus:[] },
+      { icon:'✈️', name:'Lifestyle & Adventure',  dream:[], oneYear:[], focus:[] },
     ],
   },
 
@@ -424,19 +378,8 @@ window.APP_DATA = {
 
   /* ── Business ────────────────────────────────────────────────── */
   business: {
-    companyName: 'Envosta',
-    /* Venture seeds — pre-populated ventures for the app.
-       Each venture can have defaultBlueprints[] listing templateIds
-       to automatically attach on first STATE bootstrap. */
-    ventures: [
-      {
-        id: 'envosta',
-        name: 'Envosta',
-        icon: '🚀',
-        description: 'B2B SaaS — productivity and operations platform.',
-        defaultBlueprints: ['hormozi', 'saas_mvp'],
-      },
-    ],
+    /* No pre-seeded ventures — users create their own from scratch. */
+    ventures: [],
     stages: [
       { num:0, name:'Improvise',  sub:'Validate the idea',      current:true  },
       { num:1, name:'Hustle',     sub:'First paying customers', current:false },
@@ -462,54 +405,20 @@ window.APP_DATA = {
   },
 
   /* ── Creative ────────────────────────────────────────────────── */
+  /* Empty defaults — users add their own songs, setlists, practice items. */
   creative: {
-    genre: 'Acoustic country — bar performances',
-    songs: [
-      { title:'Wagon Wheel',                artist:'Old Crow Medicine Show / Darius Rucker', key:'G',  status:'ready',    tags:['Crowd Favourite','Opener','Easy Sing-Along'] },
-      { title:'Take Me Home, Country Roads', artist:'John Denver',                           key:'G',  status:'ready',    tags:['Crowd Favourite','Closer','High Energy'] },
-      { title:'Friends in Low Places',       artist:'Garth Brooks',                           key:'Bb', status:'ready',    tags:['Bar Classic','Singalong'] },
-      { title:'The House That Built Me',     artist:'Miranda Lambert',                        key:'C',  status:'ready',    tags:['Emotional','Mid-Set'] },
-      { title:'Chicken Fried',               artist:'Zac Brown Band',                         key:'G',  status:'ready',    tags:['Feel Good','Mid-Set'] },
-      { title:'Tennessee Whiskey',           artist:'Chris Stapleton',                        key:'A',  status:'ready',    tags:['Show Stopper','Smooth'] },
-      { title:'Fast Car',                    artist:'Tracy Chapman',                          key:'C',  status:'ready',    tags:['Crossover','Quiet Moment'] },
-      { title:'Jolene',                      artist:'Dolly Parton',                           key:'Dm', status:'ready',    tags:['Classic','Emotional'] },
-      { title:'Whiskey Glasses',             artist:'Morgan Wallen',                          key:'C',  status:'learning', tags:['Modern Country','Up-Beat'] },
-      { title:'Buy Dirt',                    artist:'Jordan Davis',                           key:'G',  status:'learning', tags:['Modern Country','Story'] },
-      { title:'Seven Bridges Road',          artist:'Eagles',                                 key:'D',  status:'learning', tags:['A Cappella Intro','Harmony'] },
-      { title:'When the Stars Go Blue',      artist:'Ryan Adams',                             key:'D',  status:'learning', tags:['Late Night Vibe','Slow'] },
-      { title:'Rodeo Bones',                 artist:'Original',                               key:'G',  status:'original', tags:['Story Song','Verse-Chorus','Demo Ready'] },
-      { title:'Sixty Miles of Nothing',      artist:'Original',                               key:'Am', status:'original', tags:['Fingerpick','Lyric-Heavy','Work In Progress'] },
-      { title:'Four Walls and a Flag',       artist:'Original',                               key:'D',  status:'original', tags:['Patriotic','Slow Burn','Needs Bridge'] },
-    ],
-    setlist: [
-      { song:'Wagon Wheel',                 key:'G',  notes:'Opens strong — get the room warmed up' },
-      { song:'Chicken Fried',               key:'G',  notes:'Keep energy up, no key change needed' },
-      { song:'Tennessee Whiskey',           key:'A',  notes:'Slow it down — let voice carry' },
-      { song:'Fast Car',                    key:'C',  notes:'Crossover appeal — quiet and focused' },
-      { song:'Friends in Low Places',       key:'Bb', notes:'Bar singalong — get them involved' },
-      { song:'Rodeo Bones (Original)',      key:'G',  notes:"Plug original — \"this one's mine\"" },
-      { song:'Take Me Home, Country Roads', key:'G',  notes:'Closer — everyone sings, end strong' },
-    ],
-    practice: [
-      { icon:'🎸', title:'Fingerpicking Pattern — Travis Pick',          detail:'12 min daily. Start slow (60 BPM), build to 120. Apply to "Sixty Miles of Nothing".', priority:'high' },
-      { icon:'🎤', title:'Vocal Warmup Routine',                         detail:"10 min before every session. Lip trills, sirens, 1-3-5 scales. Don't skip this.", priority:'high' },
-      { icon:'🎵', title:'Capo Chord Transitions — Key of D',            detail:'D → G → A → Bm at 80 BPM clean before adding capo shapes. 15 min.', priority:'medium' },
-      { icon:'📝', title:'Lyric Writing — 15 min stream of consciousness',detail:'Write without editing. Mine for phrases, images, lines. One session/day minimum.', priority:'medium' },
-      { icon:'🔄', title:'Barre Chord F Shape — Clean Tone',             detail:'5 min mute-and-strum drill. First string must ring clean every time.', priority:'low' },
-      { icon:'🎙️', title:'Record a Phone Demo',                          detail:'One rough voice memo per original per week. Listen back after 24 hours.', priority:'low' },
-    ],
-    writingGoals: [
-      { label:'Songs in Library',     current:15, target:50, unit:'songs' },
-      { label:'Originals',            current:3,  target:10, unit:'originals' },
-      { label:'Demo-Ready Originals', current:1,  target:5,  unit:'demos' },
-      { label:'Sets Performed',       current:0,  target:20, unit:'gigs' },
-    ],
+    genre: '',
+    songs: [],
+    setlist: [],
+    practice: [],
+    writingGoals: [],
   },
 
   /* ── Wealth ──────────────────────────────────────────────────── */
+  /* No personal targets — users set their own in the Wealth page. */
   wealth: {
-    mrrTarget:      50000,
-    netWorthGoal:   1000000,
+    mrrTarget:      0,
+    netWorthGoal:   0,
   },
 
   /* ── Whole Foods ─────────────────────────────────────────────────
