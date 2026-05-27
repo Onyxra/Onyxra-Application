@@ -7,15 +7,12 @@ import { getSupabase } from '../lib/supabase';
 export default function Home() {
 
   useEffect(() => {
-    // Initialize Supabase and expose to vanilla JS
+    // Initialize Supabase and expose to vanilla JS (optional — app works without login)
     const supabase = getSupabase();
     if (supabase) {
       window.__supabase = supabase;
     } else {
-      // No Supabase client → can't auth → bounce to login
-      console.error('[Onyxra] Supabase env vars missing. Redirecting to /login.');
-      window.location.href = '/login';
-      return;
+      console.warn('[Onyxra] Supabase env vars missing. Running without auth.');
     }
 
     // Kill any old service worker caches from previous versions
