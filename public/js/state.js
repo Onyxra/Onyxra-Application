@@ -156,6 +156,14 @@ function _defaultState() {
       members: [],
     },
 
+    /* ── User Preferences ──
+       UI-level settings that the user can change.
+       bottomTabs: array of 5 page IDs that appear in the mobile bottom bar.
+    */
+    preferences: {
+      bottomTabs: ['dashboard', 'workout', 'nutrition', 'business', 'passions'],
+    },
+
     wealth: {},
   };
 }
@@ -218,9 +226,10 @@ window.STATE = {
           nutrition: this.data.nutrition,
           business:  this.data.business,
           passions:  this.data.passions,
-          family:    this.data.family   || { activeMemberId: null, members: [] },
-          friends:   this.data.friends  || { activeMemberId: null, members: [] },
-          wealth:    this.data.wealth   || {},
+          family:      this.data.family       || { activeMemberId: null, members: [] },
+          friends:     this.data.friends      || { activeMemberId: null, members: [] },
+          preferences: this.data.preferences  || { bottomTabs: [] },
+          wealth:      this.data.wealth       || {},
         })
         .eq('user_id', _userId);
       if (error) throw error;
@@ -268,9 +277,10 @@ window.STATE = {
               nutrition: stateRow.nutrition || _defaultState().nutrition,
               business:  stateRow.business  || _defaultState().business,
               passions:  stateRow.passions  || _defaultState().passions,
-              family:    stateRow.family    || _defaultState().family,
-              friends:   stateRow.friends   || _defaultState().friends,
-              wealth:    stateRow.wealth    || {},
+              family:      stateRow.family       || _defaultState().family,
+              friends:     stateRow.friends      || _defaultState().friends,
+              preferences: stateRow.preferences  || _defaultState().preferences,
+              wealth:      stateRow.wealth       || {},
             };
             this._migrate();
             console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
@@ -320,7 +330,11 @@ window.STATE = {
     if (!this.data.business)  this.data.business  = d.business;
     if (!this.data.passions)  this.data.passions  = d.passions;
     if (!this.data.family)    this.data.family    = d.family;
-    if (!this.data.friends)   this.data.friends   = d.friends;
+    if (!this.data.friends)     this.data.friends     = d.friends;
+    if (!this.data.preferences) this.data.preferences = d.preferences;
+    if (!Array.isArray(this.data.preferences.bottomTabs) || this.data.preferences.bottomTabs.length === 0) {
+      this.data.preferences.bottomTabs = d.preferences.bottomTabs;
+    }
     if (!this.data.wealth)    this.data.wealth    = {};
 
       /* ── State migration: safely add fields ── */
@@ -431,6 +445,38 @@ window.STATE = {
   setDashboardHabits(habits) {
     this.data.dashboard.customHabits = habits;
     this.save();
+  },
+
+  /* ── Preferences mutators ── */
+
+  setBottomTabs(pageIds) {
+    if (!this.data.preferences) this.data.preferences = { bottomTabs: [] };
+    // Enforce max 5, dedupe, keep order
+    const seen = new Set();
+    const clean = [];
+    (pageIds || []).forEach(id => {
+      if (typeof id === 'string' && !seen.has(id)) {
+        seen.add(id);
+        clean.push(id);
+      }
+    });
+    this.data.preferences.bottomTabs = clean.slice(0, 5);
+    this.save();
+  },
+
+  toggleBottomTab(pageId) {
+    if (!this.data.preferences) this.data.preferences = { bottomTabs: [] };
+    const arr = this.data.preferences.bottomTabs;
+    const idx = arr.indexOf(pageId);
+    if (idx >= 0) {
+      arr.splice(idx, 1);
+    } else if (arr.length < 5) {
+      arr.push(pageId);
+    } else {
+      return { error: 'max5' };
+    }
+    this.save();
+    return { ok: true };
   },
 
   /* ── Passions mutators ── */

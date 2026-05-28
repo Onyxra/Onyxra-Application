@@ -81,6 +81,18 @@ window.registerPage('settings', function initSettings() {
       </div>
     </div>
 
+    <!-- ══ Bottom Tab Bar (mobile favorites) ══ -->
+    <div class="card" style="margin-bottom:16px;overflow:hidden">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)">Bottom Tab Bar</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Pick up to 5 favorite tabs for the mobile bottom bar.</div>
+        </div>
+        <span id="bottomTabCount" style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:var(--accent)">0 / 5</span>
+      </div>
+      <div id="bottomTabsPicker" style="padding:8px 0"></div>
+    </div>
+
     <!-- ══ Data Management ══ -->
     <div class="card" style="margin-bottom:16px;overflow:hidden">
       <div style="padding:14px 20px;border-bottom:1px solid var(--border)">
@@ -167,6 +179,85 @@ window.registerPage('settings', function initSettings() {
     `;
     document.head.appendChild(s);
   }
+
+  /* ── Bottom Tab Bar picker ── */
+  const ALL_TAB_OPTIONS = [
+    { id: 'dashboard', label: 'Dashboard', icon: '⬡', category: 'Main' },
+    { id: 'workout',   label: 'Workout',   icon: '◉', category: 'Health' },
+    { id: 'nutrition', label: 'Nutrition', icon: '◈', category: 'Health' },
+    { id: 'business',  label: 'Business',  icon: '◧', category: 'Wealth' },
+    { id: 'wealth',    label: 'Investments', icon: '◈', category: 'Wealth' },
+    { id: 'passions',  label: 'Interests', icon: '✦', category: 'Interests' },
+    { id: 'family',    label: 'Family',    icon: '❤︎', category: 'Relationships' },
+    { id: 'friends',   label: 'Friends',   icon: '🧑', category: 'Relationships' },
+    { id: 'settings',  label: 'Settings',  icon: '⚙', category: 'Main' },
+  ];
+
+  function renderBottomTabsPicker() {
+    const picker = document.getElementById('bottomTabsPicker');
+    const countEl = document.getElementById('bottomTabCount');
+    if (!picker) return;
+
+    const selected = STATE.data.preferences?.bottomTabs || [];
+    if (countEl) countEl.textContent = selected.length + ' / 5';
+
+    // Group by category
+    const groups = {};
+    ALL_TAB_OPTIONS.forEach(opt => {
+      if (!groups[opt.category]) groups[opt.category] = [];
+      groups[opt.category].push(opt);
+    });
+
+    const sectionOrder = ['Main', 'Health', 'Wealth', 'Interests', 'Relationships'];
+    picker.innerHTML = sectionOrder.map(cat => `
+      <div style="padding:4px 0">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 20px 4px">${cat}</div>
+        ${groups[cat].map(opt => {
+          const isSelected = selected.includes(opt.id);
+          const order = selected.indexOf(opt.id);
+          return `
+            <button class="tab-picker-row" data-tabid="${opt.id}"
+              style="
+                width:100%;
+                display:flex;align-items:center;justify-content:space-between;gap:12px;
+                padding:11px 20px;background:none;border:none;color:var(--fg);
+                cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);
+                font-family:'DM Sans',sans-serif;text-align:left;
+              ">
+              <span style="display:flex;align-items:center;gap:12px;font-size:13px">
+                <span style="font-size:16px">${opt.icon}</span>
+                <span>${opt.label}</span>
+              </span>
+              <span style="display:flex;align-items:center;gap:8px">
+                ${isSelected ? `<span style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;color:var(--accent);background:rgba(124,106,247,0.18);padding:2px 8px;border-radius:6px">#${order + 1}</span>` : ''}
+                <span class="tab-pick-indicator" style="
+                  width:18px;height:18px;border-radius:50%;
+                  border:1.5px solid ${isSelected ? '#7c6af7' : 'rgba(255,255,255,0.3)'};
+                  background:${isSelected ? '#7c6af7' : 'transparent'};
+                  display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-size:12px;line-height:1;
+                ">${isSelected ? '✓' : ''}</span>
+              </span>
+            </button>`;
+        }).join('')}
+      </div>`).join('');
+
+    // Wire clicks
+    picker.querySelectorAll('.tab-picker-row').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tabid;
+        const result = STATE.toggleBottomTab(id);
+        if (result?.error === 'max5') {
+          showMsg('Already at 5 — remove one first.');
+          return;
+        }
+        renderBottomTabsPicker();
+        if (typeof window.renderBottomTabs === 'function') window.renderBottomTabs();
+      });
+    });
+  }
+
+  renderBottomTabsPicker();
 
   /* ── Export ── */
   inner.querySelector('#exportStateBtn').addEventListener('click', () => {

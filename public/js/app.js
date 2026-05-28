@@ -83,6 +83,11 @@ function navigateTo(page) {
   const drawerItem = document.querySelector(`.drawer-nav-item[data-page="${page}"]`);
   if (drawerItem) drawerItem.classList.add('active');
 
+  /* Sync bottom tab active state */
+  document.querySelectorAll('.bottom-tab').forEach(n => n.classList.remove('active'));
+  const bottomTab = document.querySelector(`.bottom-tab[data-page="${page}"]`);
+  if (bottomTab) bottomTab.classList.add('active');
+
   /* Update URL hash (no page reload) */
   history.replaceState(null, '', '#' + page);
 
@@ -92,6 +97,59 @@ function navigateTo(page) {
     INITIALISED[page] = true;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   BOTTOM TAB BAR — render based on STATE.data.preferences.bottomTabs
+═══════════════════════════════════════════════════════════════════ */
+const PAGE_ICONS = {
+  dashboard: '⬡',
+  workout:   '◉',
+  nutrition: '◈',
+  business:  '◧',
+  wealth:    '◈',
+  passions:  '✦',
+  family:    '❤︎',
+  friends:   '🧑',
+  settings:  '⚙',
+};
+
+window.renderBottomTabs = function renderBottomTabs() {
+  const bar = document.getElementById('bottomTabs');
+  if (!bar) return;
+
+  const defaults = ['dashboard', 'workout', 'nutrition', 'business', 'passions'];
+  const tabs = (window.STATE?.data?.preferences?.bottomTabs && window.STATE.data.preferences.bottomTabs.length)
+    ? window.STATE.data.preferences.bottomTabs
+    : defaults;
+
+  // Ensure exactly 5 by filling with defaults if user has fewer
+  const filled = [...tabs];
+  defaults.forEach(d => { if (filled.length < 5 && !filled.includes(d)) filled.push(d); });
+
+  bar.innerHTML = filled.slice(0, 5).map(id => {
+    const valid = VALID_PAGES.includes(id) ? id : 'dashboard';
+    const label = PAGE_NAMES[valid] || valid;
+    const icon  = PAGE_ICONS[valid] || '•';
+    return `
+      <a class="bottom-tab" data-page="${valid}" href="#${valid}">
+        <span class="bottom-tab-icon">${icon}</span>
+        <span class="bottom-tab-label">${label}</span>
+      </a>`;
+  }).join('');
+
+  // Wire clicks
+  bar.querySelectorAll('.bottom-tab').forEach(t => {
+    t.addEventListener('click', e => {
+      e.preventDefault();
+      navigateTo(t.dataset.page);
+    });
+  });
+
+  // Sync active state to current page
+  const currentHash = window.location.hash.replace('#', '') || 'dashboard';
+  const activeTab = bar.querySelector(`.bottom-tab[data-page="${currentHash}"]`);
+  if (activeTab) activeTab.classList.add('active');
+};
 
 /* Wire up nav items */
 document.querySelectorAll('.nav-item').forEach(item => {
