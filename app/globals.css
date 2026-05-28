@@ -4047,7 +4047,7 @@ select.form-input option { background: #141920; color: var(--text); }
 /* ── CTA Button Row ── */
 .ai-ctas {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   margin-bottom: 24px;
 }

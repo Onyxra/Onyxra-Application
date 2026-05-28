@@ -76,6 +76,9 @@ export default function Home() {
           <a className="drawer-nav-item" data-page="passions" href="#passions">
             <span className="drawer-nav-icon">✦</span><span>Interests</span>
           </a>
+          <a className="drawer-nav-item" data-page="family" href="#family">
+            <span className="drawer-nav-icon">❤︎</span><span>Family</span>
+          </a>
         </div>
         <div className="drawer-divider"></div>
         <div className="drawer-nav">
@@ -140,6 +143,10 @@ export default function Home() {
           <a className="nav-item" data-page="passions" href="#passions">
             <span className="nav-icon">✦</span>
             <span className="nav-label">Interests</span>
+          </a>
+          <a className="nav-item" data-page="family" href="#family">
+            <span className="nav-icon">❤︎</span>
+            <span className="nav-label">Family</span>
           </a>
           <div className="nav-divider nav-settings-divider"></div>
           <a className="nav-item nav-settings-item" data-page="settings" href="#settings">
@@ -312,6 +319,11 @@ export default function Home() {
           <div className="page-inner" id="passions-inner"></div>
         </section>
 
+        {/* Family */}
+        <section className="page" id="page-family" data-accent="creative">
+          <div className="page-inner" id="family-inner"></div>
+        </section>
+
         {/* Settings */}
         <section className="page" id="page-settings" data-accent="dashboard">
           <div className="page-inner" id="settings-inner"></div>
@@ -329,6 +341,7 @@ export default function Home() {
       <Script src="/js/pages/business.js" strategy="afterInteractive" />
       <Script src="/js/pages/wealth.js" strategy="afterInteractive" />
       <Script src="/js/pages/passions.js" strategy="afterInteractive" />
+      <Script src="/js/pages/family.js" strategy="afterInteractive" />
       <Script src="/js/pages/settings.js" strategy="afterInteractive" />
     </>
   );

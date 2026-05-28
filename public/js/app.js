@@ -41,7 +41,7 @@ window.registerPage = function(name, fn) {
 /* ══════════════════════════════════════════════════════════════════
    ROUTER
 ════════════════════════════════════════════════════════════════ */
-const VALID_PAGES = ['dashboard', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'settings'];
+const VALID_PAGES = ['dashboard', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'family', 'settings'];
 
 const PAGE_NAMES = {
   dashboard: 'Dashboard',
@@ -50,6 +50,7 @@ const PAGE_NAMES = {
   business:  'Business',
   wealth:    'Wealth',
   passions:  'Interests',
+  family:    'Family',
   settings:  'Settings',
 };
 

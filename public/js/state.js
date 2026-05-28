@@ -140,6 +140,16 @@ function _defaultState() {
       passions: [],
     },
 
+    /* ── Family ──
+       Members of the user's family (or chosen circle).
+       Each member has notes, an updates feed (what they're up to),
+       and optional goals.
+    */
+    family: {
+      activeMemberId: null,
+      members: [],
+    },
+
     wealth: {},
   };
 }
@@ -202,7 +212,8 @@ window.STATE = {
           nutrition: this.data.nutrition,
           business:  this.data.business,
           passions:  this.data.passions,
-          wealth:    this.data.wealth || {},
+          family:    this.data.family   || { activeMemberId: null, members: [] },
+          wealth:    this.data.wealth   || {},
         })
         .eq('user_id', _userId);
       if (error) throw error;
@@ -250,6 +261,7 @@ window.STATE = {
               nutrition: stateRow.nutrition || _defaultState().nutrition,
               business:  stateRow.business  || _defaultState().business,
               passions:  stateRow.passions  || _defaultState().passions,
+              family:    stateRow.family    || _defaultState().family,
               wealth:    stateRow.wealth    || {},
             };
             this._migrate();
@@ -299,6 +311,7 @@ window.STATE = {
     if (!this.data.nutrition) this.data.nutrition = d.nutrition;
     if (!this.data.business)  this.data.business  = d.business;
     if (!this.data.passions)  this.data.passions  = d.passions;
+    if (!this.data.family)    this.data.family    = d.family;
     if (!this.data.wealth)    this.data.wealth    = {};
 
       /* ── State migration: safely add fields ── */
@@ -505,6 +518,96 @@ window.STATE = {
     const bp = (p?.blueprints || []).find(b => b.id === blueprintId);
     if (!bp) return;
     bp.steps[stepIdx].notes = notes;
+    this.save();
+  },
+
+  /* ── Family mutators ── */
+
+  _getFamilyMember(memberId) {
+    return (this.data.family?.members || []).find(m => m.id === memberId);
+  },
+
+  addFamilyMember(name, role, icon, notes) {
+    const id = 'fm_' + Date.now();
+    if (!this.data.family) this.data.family = { activeMemberId: null, members: [] };
+    this.data.family.members.push({
+      id,
+      name,
+      role: role || '',
+      icon: icon || '👤',
+      notes: notes || '',
+      updates: [],
+      goals: [],
+      birthday: null,
+    });
+    this.data.family.activeMemberId = id;
+    this.save();
+    return id;
+  },
+
+  updateFamilyMember(memberId, fields) {
+    const m = this._getFamilyMember(memberId);
+    if (m) Object.assign(m, fields);
+    this.save();
+  },
+
+  removeFamilyMember(memberId) {
+    if (!this.data.family) return;
+    this.data.family.members = this.data.family.members.filter(m => m.id !== memberId);
+    if (this.data.family.activeMemberId === memberId) {
+      this.data.family.activeMemberId = this.data.family.members[0]?.id || null;
+    }
+    this.save();
+  },
+
+  /** Add an "update" — a dated note about what this family member is up to. */
+  addFamilyUpdate(memberId, text) {
+    const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    if (!Array.isArray(m.updates)) m.updates = [];
+    m.updates.unshift({
+      id: 'fu_' + Date.now(),
+      date: new Date().toISOString(),
+      text,
+    });
+    if (m.updates.length > 200) m.updates.length = 200;
+    this.save();
+  },
+
+  removeFamilyUpdate(memberId, updateId) {
+    const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    m.updates = (m.updates || []).filter(u => u.id !== updateId);
+    this.save();
+  },
+
+  addFamilyGoal(memberId, label, target, unit) {
+    const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    if (!Array.isArray(m.goals)) m.goals = [];
+    const id = 'fg_' + Date.now();
+    m.goals.push({
+      id,
+      label,
+      current: 0,
+      target: parseFloat(target) || 0,
+      unit: unit || '',
+    });
+    this.save();
+    return id;
+  },
+
+  updateFamilyGoal(memberId, goalId, current) {
+    const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    const g = (m.goals || []).find(g => g.id === goalId);
+    if (g) { g.current = parseFloat(current) || 0; this.save(); }
+  },
+
+  removeFamilyGoal(memberId, goalId) {
+    const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    m.goals = (m.goals || []).filter(g => g.id !== goalId);
     this.save();
   },
 

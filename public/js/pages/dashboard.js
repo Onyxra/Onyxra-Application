@@ -24,6 +24,7 @@ window.registerPage('dashboard', function initDashboard() {
   const ns  = STATE.data.nutrition;
   const bs  = STATE.data.business;
   const ps  = STATE.data.passions;
+  const fs  = STATE.data.family || { activeMemberId: null, members: [] };
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -66,6 +67,16 @@ window.registerPage('dashboard', function initDashboard() {
       interests: {
         interestCount: (ps.passions || []).length,
         activeInterest: ps.passions?.find(p => p.id === ps.activePassionId)?.name || null,
+      },
+      family: {
+        memberCount: (fs.members || []).length,
+        members: (fs.members || []).map(m => ({
+          name: m.name,
+          role: m.role,
+          latestUpdate: m.updates?.[0]?.text || null,
+          latestUpdateDate: m.updates?.[0]?.date || null,
+          goalCount: (m.goals || []).length,
+        })),
       },
     };
   }
@@ -208,6 +219,38 @@ window.registerPage('dashboard', function initDashboard() {
       cta: { label: 'Open Interests →', action: 'goto:passions' },
     });
 
+    /* ── Family Card ── */
+    const familyMembers = fs.members || [];
+    // Find the most recent update across all members
+    let latestFamilyUpdate = null;
+    let latestFamilyMember = null;
+    familyMembers.forEach(m => {
+      const u = m.updates?.[0];
+      if (u && (!latestFamilyUpdate || new Date(u.date) > new Date(latestFamilyUpdate.date))) {
+        latestFamilyUpdate = u;
+        latestFamilyMember = m;
+      }
+    });
+    cards.push({
+      id: 'family',
+      icon: '❤︎',
+      eyebrow: 'Family',
+      title: familyMembers.length ? `${familyMembers.length} ${familyMembers.length === 1 ? 'person' : 'people'} tracked` : 'No family yet',
+      accent: '#ef5350',
+      gradient: 'linear-gradient(135deg, rgba(239,83,80,0.15) 0%, rgba(244,143,177,0.05) 100%)',
+      body: familyMembers.length ? (
+        latestFamilyUpdate ? `
+          <div class="card-hint" style="margin-bottom:8px"><strong style="color:#fff">${escapeHtml(latestFamilyMember.icon || '👤')} ${escapeHtml(latestFamilyMember.name)}</strong></div>
+          <div class="card-hint" style="line-height:1.5">"${escapeHtml(latestFamilyUpdate.text)}"</div>
+        ` : `
+          <div class="card-empty">No updates logged yet. Add one in the Family page.</div>
+        `
+      ) : `
+        <div class="card-empty">Add the people you care about and track what they're up to.</div>
+      `,
+      cta: { label: 'Open Family →', action: 'goto:family' },
+    });
+
     return cards;
   }
 
@@ -262,7 +305,8 @@ window.registerPage('dashboard', function initDashboard() {
                                             c.id === 'workout' ? 'Workout' :
                                             c.id === 'meals' ? 'Meals' :
                                             c.id === 'business' ? 'Business' :
-                                            c.id === 'passions' ? 'Interests' : c.id}</span>
+                                            c.id === 'passions' ? 'Interests' :
+                                            c.id === 'family' ? 'Family' : c.id}</span>
             </button>
           `).join('')}
         </div>
