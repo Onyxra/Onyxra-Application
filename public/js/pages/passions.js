@@ -1443,11 +1443,6 @@ window.registerPage('passions', function initPassions() {
     setEl('navProfileName', name);
   }
 
-  // Render the mobile bottom tab bar (based on STATE.data.preferences.bottomTabs)
-  if (typeof window.renderBottomTabs === 'function') {
-    window.renderBottomTabs();
-  }
-
   const hash  = window.location.hash.replace('#', '');
   const valid = ['dashboard','nutrition','workout','business','wealth','passions','family','friends','settings'];
   navigateTo(valid.includes(hash) ? hash : 'dashboard');

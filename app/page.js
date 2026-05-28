@@ -361,12 +361,6 @@ export default function Home() {
 
       </main>
 
-      {/* ══ MOBILE BOTTOM TAB BAR ══
-           Rendered/managed by app.js based on STATE.data.preferences.bottomTabs.
-           Hidden on desktop via CSS.
-      */}
-      <nav className="bottom-tabs" id="bottomTabs" aria-label="Quick navigation"></nav>
-
       {/* ══ SCRIPTS — loaded in order ══ */}
       <Script src="/js/data.js" strategy="afterInteractive" />
       <Script src="/js/state.js" strategy="afterInteractive" />
