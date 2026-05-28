@@ -61,23 +61,34 @@ export default function Home() {
           <a className="drawer-nav-item" data-page="dashboard" href="#dashboard">
             <span className="drawer-nav-icon">⬡</span><span>Dashboard</span>
           </a>
-          <a className="drawer-nav-item" data-page="nutrition" href="#nutrition">
-            <span className="drawer-nav-icon">◈</span><span>Nutrition</span>
-          </a>
+
+          <div className="drawer-section-label">Health</div>
           <a className="drawer-nav-item" data-page="workout" href="#workout">
             <span className="drawer-nav-icon">◉</span><span>Workout</span>
           </a>
+          <a className="drawer-nav-item" data-page="nutrition" href="#nutrition">
+            <span className="drawer-nav-icon">◈</span><span>Nutrition</span>
+          </a>
+
+          <div className="drawer-section-label">Wealth</div>
           <a className="drawer-nav-item" data-page="business" href="#business">
             <span className="drawer-nav-icon">◧</span><span>Business</span>
           </a>
           <a className="drawer-nav-item" data-page="wealth" href="#wealth">
-            <span className="drawer-nav-icon">◈</span><span>Wealth</span>
+            <span className="drawer-nav-icon">◈</span><span>Investments</span>
           </a>
+
+          <div className="drawer-section-label">Interests</div>
           <a className="drawer-nav-item" data-page="passions" href="#passions">
             <span className="drawer-nav-icon">✦</span><span>Interests</span>
           </a>
+
+          <div className="drawer-section-label">Relationships</div>
           <a className="drawer-nav-item" data-page="family" href="#family">
             <span className="drawer-nav-icon">❤︎</span><span>Family</span>
+          </a>
+          <a className="drawer-nav-item" data-page="friends" href="#friends">
+            <span className="drawer-nav-icon">🧑</span><span>Friends</span>
           </a>
         </div>
         <div className="drawer-divider"></div>
@@ -121,33 +132,47 @@ export default function Home() {
             <span className="nav-icon">⬡</span>
             <span className="nav-label">Dashboard</span>
           </a>
-          <div className="nav-divider"></div>
-          <a className="nav-item" data-page="nutrition" href="#nutrition">
-            <span className="nav-icon">◈</span>
-            <span className="nav-label">Nutrition</span>
-          </a>
+
+          {/* ── HEALTH ── */}
+          <div className="nav-section-label">Health</div>
           <a className="nav-item" data-page="workout" href="#workout">
             <span className="nav-icon">◉</span>
             <span className="nav-label">Workout</span>
           </a>
-          <div className="nav-divider"></div>
+          <a className="nav-item" data-page="nutrition" href="#nutrition">
+            <span className="nav-icon">◈</span>
+            <span className="nav-label">Nutrition</span>
+          </a>
+
+          {/* ── WEALTH ── */}
+          <div className="nav-section-label">Wealth</div>
           <a className="nav-item" data-page="business" href="#business">
             <span className="nav-icon">◧</span>
             <span className="nav-label">Business</span>
           </a>
           <a className="nav-item" data-page="wealth" href="#wealth">
             <span className="nav-icon">◈</span>
-            <span className="nav-label">Wealth</span>
+            <span className="nav-label">Investments</span>
           </a>
-          <div className="nav-divider"></div>
+
+          {/* ── INTERESTS ── */}
+          <div className="nav-section-label">Interests</div>
           <a className="nav-item" data-page="passions" href="#passions">
             <span className="nav-icon">✦</span>
             <span className="nav-label">Interests</span>
           </a>
+
+          {/* ── RELATIONSHIPS ── */}
+          <div className="nav-section-label">Relationships</div>
           <a className="nav-item" data-page="family" href="#family">
             <span className="nav-icon">❤︎</span>
             <span className="nav-label">Family</span>
           </a>
+          <a className="nav-item" data-page="friends" href="#friends">
+            <span className="nav-icon">🧑</span>
+            <span className="nav-label">Friends</span>
+          </a>
+
           <div className="nav-divider nav-settings-divider"></div>
           <a className="nav-item nav-settings-item" data-page="settings" href="#settings">
             <span className="nav-icon">⚙</span>
@@ -324,6 +349,11 @@ export default function Home() {
           <div className="page-inner" id="family-inner"></div>
         </section>
 
+        {/* Friends */}
+        <section className="page" id="page-friends" data-accent="creative">
+          <div className="page-inner" id="friends-inner"></div>
+        </section>
+
         {/* Settings */}
         <section className="page" id="page-settings" data-accent="dashboard">
           <div className="page-inner" id="settings-inner"></div>
@@ -342,6 +372,7 @@ export default function Home() {
       <Script src="/js/pages/wealth.js" strategy="afterInteractive" />
       <Script src="/js/pages/passions.js" strategy="afterInteractive" />
       <Script src="/js/pages/family.js" strategy="afterInteractive" />
+      <Script src="/js/pages/friends.js" strategy="afterInteractive" />
       <Script src="/js/pages/settings.js" strategy="afterInteractive" />
     </>
   );

@@ -1444,6 +1444,6 @@ window.registerPage('passions', function initPassions() {
   }
 
   const hash  = window.location.hash.replace('#', '');
-  const valid = ['dashboard','nutrition','workout','business','wealth','passions','family','settings'];
+  const valid = ['dashboard','nutrition','workout','business','wealth','passions','family','friends','settings'];
   navigateTo(valid.includes(hash) ? hash : 'dashboard');
 })();

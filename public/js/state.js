@@ -142,10 +142,16 @@ function _defaultState() {
 
     /* ── Family ──
        Members of the user's family (or chosen circle).
-       Each member has notes, an updates feed (what they're up to),
-       and optional goals.
     */
     family: {
+      activeMemberId: null,
+      members: [],
+    },
+
+    /* ── Friends ──
+       Same shape as family — separate so the two stay independent.
+    */
+    friends: {
       activeMemberId: null,
       members: [],
     },
@@ -213,6 +219,7 @@ window.STATE = {
           business:  this.data.business,
           passions:  this.data.passions,
           family:    this.data.family   || { activeMemberId: null, members: [] },
+          friends:   this.data.friends  || { activeMemberId: null, members: [] },
           wealth:    this.data.wealth   || {},
         })
         .eq('user_id', _userId);
@@ -262,6 +269,7 @@ window.STATE = {
               business:  stateRow.business  || _defaultState().business,
               passions:  stateRow.passions  || _defaultState().passions,
               family:    stateRow.family    || _defaultState().family,
+              friends:   stateRow.friends   || _defaultState().friends,
               wealth:    stateRow.wealth    || {},
             };
             this._migrate();
@@ -312,6 +320,7 @@ window.STATE = {
     if (!this.data.business)  this.data.business  = d.business;
     if (!this.data.passions)  this.data.passions  = d.passions;
     if (!this.data.family)    this.data.family    = d.family;
+    if (!this.data.friends)   this.data.friends   = d.friends;
     if (!this.data.wealth)    this.data.wealth    = {};
 
       /* ── State migration: safely add fields ── */
@@ -606,6 +615,88 @@ window.STATE = {
 
   removeFamilyGoal(memberId, goalId) {
     const m = this._getFamilyMember(memberId);
+    if (!m) return;
+    m.goals = (m.goals || []).filter(g => g.id !== goalId);
+    this.save();
+  },
+
+  /* ── Friends mutators ── */
+
+  _getFriend(memberId) {
+    return (this.data.friends?.members || []).find(m => m.id === memberId);
+  },
+
+  addFriend(name, role, icon, notes) {
+    const id = 'fr_' + Date.now();
+    if (!this.data.friends) this.data.friends = { activeMemberId: null, members: [] };
+    this.data.friends.members.push({
+      id,
+      name,
+      role: role || '',
+      icon: icon || '🧑',
+      notes: notes || '',
+      updates: [],
+      goals: [],
+    });
+    this.data.friends.activeMemberId = id;
+    this.save();
+    return id;
+  },
+
+  updateFriend(memberId, fields) {
+    const m = this._getFriend(memberId);
+    if (m) Object.assign(m, fields);
+    this.save();
+  },
+
+  removeFriend(memberId) {
+    if (!this.data.friends) return;
+    this.data.friends.members = this.data.friends.members.filter(m => m.id !== memberId);
+    if (this.data.friends.activeMemberId === memberId) {
+      this.data.friends.activeMemberId = this.data.friends.members[0]?.id || null;
+    }
+    this.save();
+  },
+
+  addFriendUpdate(memberId, text) {
+    const m = this._getFriend(memberId);
+    if (!m) return;
+    if (!Array.isArray(m.updates)) m.updates = [];
+    m.updates.unshift({
+      id: 'fru_' + Date.now(),
+      date: new Date().toISOString(),
+      text,
+    });
+    if (m.updates.length > 200) m.updates.length = 200;
+    this.save();
+  },
+
+  removeFriendUpdate(memberId, updateId) {
+    const m = this._getFriend(memberId);
+    if (!m) return;
+    m.updates = (m.updates || []).filter(u => u.id !== updateId);
+    this.save();
+  },
+
+  addFriendGoal(memberId, label, target, unit) {
+    const m = this._getFriend(memberId);
+    if (!m) return;
+    if (!Array.isArray(m.goals)) m.goals = [];
+    const id = 'frg_' + Date.now();
+    m.goals.push({ id, label, current: 0, target: parseFloat(target) || 0, unit: unit || '' });
+    this.save();
+    return id;
+  },
+
+  updateFriendGoal(memberId, goalId, current) {
+    const m = this._getFriend(memberId);
+    if (!m) return;
+    const g = (m.goals || []).find(g => g.id === goalId);
+    if (g) { g.current = parseFloat(current) || 0; this.save(); }
+  },
+
+  removeFriendGoal(memberId, goalId) {
+    const m = this._getFriend(memberId);
     if (!m) return;
     m.goals = (m.goals || []).filter(g => g.id !== goalId);
     this.save();

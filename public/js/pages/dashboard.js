@@ -24,7 +24,8 @@ window.registerPage('dashboard', function initDashboard() {
   const ns  = STATE.data.nutrition;
   const bs  = STATE.data.business;
   const ps  = STATE.data.passions;
-  const fs  = STATE.data.family || { activeMemberId: null, members: [] };
+  const fs  = STATE.data.family  || { activeMemberId: null, members: [] };
+  const frs = STATE.data.friends || { activeMemberId: null, members: [] };
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -76,6 +77,15 @@ window.registerPage('dashboard', function initDashboard() {
           latestUpdate: m.updates?.[0]?.text || null,
           latestUpdateDate: m.updates?.[0]?.date || null,
           goalCount: (m.goals || []).length,
+        })),
+      },
+      friends: {
+        memberCount: (frs.members || []).length,
+        members: (frs.members || []).map(m => ({
+          name: m.name,
+          role: m.role,
+          latestUpdate: m.updates?.[0]?.text || null,
+          latestUpdateDate: m.updates?.[0]?.date || null,
         })),
       },
     };
@@ -251,6 +261,37 @@ window.registerPage('dashboard', function initDashboard() {
       cta: { label: 'Open Family →', action: 'goto:family' },
     });
 
+    /* ── Friends Card ── */
+    const friendsMembers = frs.members || [];
+    let latestFriendUpdate = null;
+    let latestFriendMember = null;
+    friendsMembers.forEach(m => {
+      const u = m.updates?.[0];
+      if (u && (!latestFriendUpdate || new Date(u.date) > new Date(latestFriendUpdate.date))) {
+        latestFriendUpdate = u;
+        latestFriendMember = m;
+      }
+    });
+    cards.push({
+      id: 'friends',
+      icon: '🧑',
+      eyebrow: 'Friends',
+      title: friendsMembers.length ? `${friendsMembers.length} ${friendsMembers.length === 1 ? 'friend' : 'friends'}` : 'No friends added yet',
+      accent: '#4fc3f7',
+      gradient: 'linear-gradient(135deg, rgba(79,195,247,0.15) 0%, rgba(124,106,247,0.05) 100%)',
+      body: friendsMembers.length ? (
+        latestFriendUpdate ? `
+          <div class="card-hint" style="margin-bottom:8px"><strong style="color:#fff">${escapeHtml(latestFriendMember.icon || '🧑')} ${escapeHtml(latestFriendMember.name)}</strong></div>
+          <div class="card-hint" style="line-height:1.5">"${escapeHtml(latestFriendUpdate.text)}"</div>
+        ` : `
+          <div class="card-empty">No updates logged yet. Add one in the Friends page.</div>
+        `
+      ) : `
+        <div class="card-empty">Add your friends and log what they're up to.</div>
+      `,
+      cta: { label: 'Open Friends →', action: 'goto:friends' },
+    });
+
     return cards;
   }
 
@@ -306,7 +347,8 @@ window.registerPage('dashboard', function initDashboard() {
                                             c.id === 'meals' ? 'Meals' :
                                             c.id === 'business' ? 'Business' :
                                             c.id === 'passions' ? 'Interests' :
-                                            c.id === 'family' ? 'Family' : c.id}</span>
+                                            c.id === 'family' ? 'Family' :
+                                            c.id === 'friends' ? 'Friends' : c.id}</span>
             </button>
           `).join('')}
         </div>
