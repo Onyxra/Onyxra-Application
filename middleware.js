@@ -1,60 +1,15 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
-import { getSupabaseUrl, getSupabasePublicKey, hasSupabaseConfig } from './lib/supabase-env';
+
+/**
+ * ONYXRA — middleware
+ *
+ * Single-user mode: no login required. The middleware does nothing
+ * except pass requests through. When we re-enable multi-user auth
+ * later, we'll restore the redirect-to-/login logic here.
+ */
 
 export async function middleware(request) {
-  // If env vars are missing, let the request through (page will show error)
-  if (!hasSupabaseConfig()) {
-    console.error('[Middleware] Missing Supabase env vars');
-    return NextResponse.next();
-  }
-
-  let response = NextResponse.next({ request });
-
-  try {
-    const supabase = createServerClient(
-      getSupabaseUrl(),
-      getSupabasePublicKey(),
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value);
-              response.cookies.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // If not logged in and not on login page, redirect to login
-    if (!user && !request.nextUrl.pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
-    }
-
-    // If logged in and on login page, redirect to app
-    if (user && request.nextUrl.pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
-    }
-  } catch (err) {
-    console.error('[Middleware] Auth check failed:', err.message);
-    if (!request.nextUrl.pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
-    }
-  }
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

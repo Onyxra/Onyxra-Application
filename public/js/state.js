@@ -21,11 +21,15 @@
  */
 
 /* ──────────────────────────────────────────────────────────────────
-   Supabase client — initialized from env vars set on the page
+   Persistence mode
+   - 'supabase' if an authenticated Supabase user exists
+   - 'local'    otherwise — saves to localStorage
 ────────────────────────────────────────────────────────────────── */
 let _supabase = null;
 let _userId = null;
 let _saveTimer = null;
+let _mode = 'local';                    // 'local' | 'supabase'
+const _LOCAL_KEY = 'onyxra_state_v1';
 
 function _getSupabase() {
   if (_supabase) return _supabase;
@@ -35,6 +39,13 @@ function _getSupabase() {
   }
   return null;
 }
+
+/* Default single-user identity when no auth exists yet. */
+const DEFAULT_PROFILE = {
+  id: 'local-user',
+  display_name: 'Koltyn',
+  email: null,
+};
 
 /* ──────────────────────────────────────────────────────────────────
    Default state bootstrap
@@ -141,9 +152,16 @@ window.STATE = {
   data: null,
   user: null,
 
-  /* ── Persistence ── */
+  /* ── Persistence ──
+     Dual-mode:
+     - If an authenticated Supabase user is found, mode='supabase'.
+     - Otherwise mode='local' and state is persisted to localStorage.
+     The data shape is identical, so the only thing that changes is the
+     storage backend. When real auth is added later, on first login we
+     can migrate localStorage data into Supabase.
+  */
 
-  /** Persist current data to Supabase (debounced, fire-and-forget). */
+  /** Persist current data (debounced, fire-and-forget). */
   save() {
     if (!this.data) return;
     this.data._lastUpdated = new Date().toISOString();
@@ -151,14 +169,28 @@ window.STATE = {
     // Debounce writes — wait 500ms after last mutation before saving
     if (_saveTimer) clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => {
-      this._writeToSupabase();
+      if (_mode === 'supabase') {
+        this._writeToSupabase();
+      } else {
+        this._writeToLocal();
+      }
     }, 500);
+  },
+
+  _writeToLocal() {
+    try {
+      localStorage.setItem(_LOCAL_KEY, JSON.stringify(this.data));
+      console.log('[STATE] Saved to localStorage');
+    } catch (err) {
+      console.warn('[STATE] localStorage write failed:', err);
+    }
   },
 
   async _writeToSupabase() {
     const sb = _getSupabase();
     if (!sb || !_userId) {
-      console.warn('[STATE] No Supabase connection, save skipped');
+      console.warn('[STATE] No Supabase connection — falling back to local save');
+      this._writeToLocal();
       return;
     }
     try {
@@ -176,54 +208,98 @@ window.STATE = {
       if (error) throw error;
       console.log('[STATE] Saved to Supabase');
     } catch (err) {
-      console.warn('[STATE] Supabase write failed:', err);
+      console.warn('[STATE] Supabase write failed, saving locally:', err);
+      this._writeToLocal();
     }
   },
 
-  /** Load state from Supabase, falling back to defaults. */
+  /** Load state. Tries Supabase first if a user is authenticated,
+   *  otherwise loads from localStorage. Falls back to defaults. */
   async load() {
+    // Try Supabase auth first (in case the user is signed in)
     try {
       const sb = _getSupabase();
-      if (!sb) throw new Error('No Supabase client');
+      if (sb) {
+        const { data: { user } } = await sb.auth.getUser();
+        if (user) {
+          _userId = user.id;
+          _mode = 'supabase';
+          this.user = user;
 
-      // Get current user
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      _userId = user.id;
-      this.user = user;
+          // Profile
+          const { data: profile } = await sb
+            .from('users')
+            .select('*')
+            .eq('id', _userId)
+            .single();
+          this.profile = profile;
 
-      // Get user row from public.users
-      const { data: profile } = await sb
-        .from('users')
-        .select('*')
-        .eq('id', _userId)
-        .single();
-      this.profile = profile;
+          // State row
+          const { data: stateRow } = await sb
+            .from('user_state')
+            .select('*')
+            .eq('user_id', _userId)
+            .single();
 
-      // Get user state
-      const { data: stateRow, error } = await sb
-        .from('user_state')
-        .select('*')
-        .eq('user_id', _userId)
-        .single();
+          if (stateRow) {
+            this.data = {
+              _version: stateRow.version || 2,
+              _lastUpdated: stateRow.updated_at,
+              dashboard: stateRow.dashboard || _defaultState().dashboard,
+              workout:   stateRow.workout   || _defaultState().workout,
+              nutrition: stateRow.nutrition || _defaultState().nutrition,
+              business:  stateRow.business  || _defaultState().business,
+              passions:  stateRow.passions  || _defaultState().passions,
+              wealth:    stateRow.wealth    || {},
+            };
+            this._migrate();
+            console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
+            return;
+          }
+          // Authenticated but no state row — fall through to defaults
+          this.data = _defaultState();
+          this._migrate();
+          console.log('[STATE] Authenticated, no state yet — using defaults');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[STATE] Supabase load failed, falling back to local:', err.message);
+    }
 
-      if (error || !stateRow) {
-        console.log('[STATE] No saved state, using defaults');
-        this.data = _defaultState();
+    // Local mode — default identity, load from localStorage
+    _mode = 'local';
+    this.user = null;
+    this.profile = { ...DEFAULT_PROFILE };
+
+    try {
+      const raw = localStorage.getItem(_LOCAL_KEY);
+      if (raw) {
+        this.data = JSON.parse(raw);
+        this._migrate();
+        console.log('[STATE] Loaded from localStorage');
         return;
       }
+    } catch (err) {
+      console.warn('[STATE] localStorage read failed:', err);
+    }
 
-      // Rebuild data from DB columns
-      this.data = {
-        _version: stateRow.version || 2,
-        _lastUpdated: stateRow.updated_at,
-        dashboard: stateRow.dashboard || _defaultState().dashboard,
-        workout:   stateRow.workout   || _defaultState().workout,
-        nutrition: stateRow.nutrition || _defaultState().nutrition,
-        business:  stateRow.business  || _defaultState().business,
-        passions:  stateRow.passions  || _defaultState().passions,
-        wealth:    stateRow.wealth    || {},
-      };
+    this.data = _defaultState();
+    this._migrate();
+    console.log('[STATE] Using defaults (no saved state)');
+  },
+
+  /** Apply forward-compat field defaults. Called after every load. */
+  _migrate() {
+    if (!this.data) return;
+    // Make sure all top-level sections exist
+    const d = _defaultState();
+    if (!this.data.dashboard) this.data.dashboard = d.dashboard;
+    if (!this.data.workout)   this.data.workout   = d.workout;
+    if (!this.data.nutrition) this.data.nutrition = d.nutrition;
+    if (!this.data.business)  this.data.business  = d.business;
+    if (!this.data.passions)  this.data.passions  = d.passions;
+    if (!this.data.wealth)    this.data.wealth    = {};
 
       /* ── State migration: safely add fields ── */
       const ds = this.data.dashboard;
@@ -265,12 +341,6 @@ window.STATE = {
         if (!p.blueprintType) p.blueprintType = p.id === 'music' ? 'music' : 'general';
         if (!p.blueprints) p.blueprints = [];
       });
-
-      console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
-    } catch (err) {
-      console.warn('[STATE] Load failed, using defaults:', err.message);
-      this.data = _defaultState();
-    }
   },
 
   /* ── Export / Import ── */

@@ -7,24 +7,16 @@ import { getSupabase } from '../lib/supabase';
 export default function Home() {
 
   useEffect(() => {
-    // Initialize Supabase and expose to vanilla JS
+    // Single-user mode: no auth required. Still try to wire up Supabase
+    // so that when we add real auth later, it's already connected.
     const supabase = getSupabase();
-    if (supabase) {
-      window.__supabase = supabase;
-    } else {
-      // No Supabase client → can't auth → bounce to login
-      console.error('[Onyxra] Supabase env vars missing. Redirecting to /login.');
-      window.location.href = '/login';
-      return;
-    }
+    if (supabase) window.__supabase = supabase;
 
-    // Kill any old service worker caches from previous versions
+    // Service worker — force-update any old SW + register new one
     if ('serviceWorker' in navigator) {
-      // Force-update existing SW
       navigator.serviceWorker.getRegistrations().then(regs => {
         regs.forEach(reg => reg.update());
       });
-      // Register the new SW
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(reg => console.log('[SW] Registered, scope:', reg.scope))
         .catch(err => console.warn('[SW] Registration failed:', err));

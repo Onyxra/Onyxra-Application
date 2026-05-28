@@ -1421,10 +1421,11 @@ window.registerPage('passions', function initPassions() {
 });
 
 (async function boot() {
-  // Wait for Supabase client to be injected by React
+  // Brief wait for Supabase client (if env vars are set, React will inject it).
+  // If not set after a short window, STATE.load() falls back to localStorage.
   let retries = 0;
-  while (!window.__supabase && retries < 50) {
-    await new Promise(r => setTimeout(r, 100));
+  while (!window.__supabase && retries < 10) {
+    await new Promise(r => setTimeout(r, 50));
     retries++;
   }
 
