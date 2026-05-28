@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { getSupabaseUrl, getSupabasePublicKey, hasSupabaseConfig } from './lib/supabase-env';
 
 export async function middleware(request) {
-  // If env vars are missing, let the request through (will show error on page)
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_API_KEY) {
+  // If env vars are missing, let the request through (page will show error)
+  if (!hasSupabaseConfig()) {
     console.error('[Middleware] Missing Supabase env vars');
     return NextResponse.next();
   }
@@ -12,8 +13,8 @@ export async function middleware(request) {
 
   try {
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_API_KEY,
+      getSupabaseUrl(),
+      getSupabasePublicKey(),
       {
         cookies: {
           getAll() {
@@ -46,7 +47,6 @@ export async function middleware(request) {
     }
   } catch (err) {
     console.error('[Middleware] Auth check failed:', err.message);
-    // On error, redirect to login to be safe
     if (!request.nextUrl.pathname.startsWith('/login')) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
