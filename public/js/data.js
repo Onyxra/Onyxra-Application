@@ -51,7 +51,7 @@ window.APP_DATA = {
       { icon:'💪', name:'Health & Fitness',       dream:[], oneYear:[], focus:[] },
       { icon:'❤️', name:'Relationships & Family', dream:[], oneYear:[], focus:[] },
       { icon:'🧠', name:'Personal Growth',        dream:[], oneYear:[], focus:[] },
-      { icon:'🎨', name:'Creativity & Passions',  dream:[], oneYear:[], focus:[] },
+      { icon:'🎨', name:'Creativity & Interests',  dream:[], oneYear:[], focus:[] },
       { icon:'✈️', name:'Lifestyle & Adventure',  dream:[], oneYear:[], focus:[] },
     ],
   },

@@ -74,7 +74,7 @@ export default function Home() {
             <span className="drawer-nav-icon">◈</span><span>Wealth</span>
           </a>
           <a className="drawer-nav-item" data-page="passions" href="#passions">
-            <span className="drawer-nav-icon">✦</span><span>Passions</span>
+            <span className="drawer-nav-icon">✦</span><span>Interests</span>
           </a>
         </div>
         <div className="drawer-divider"></div>
@@ -139,7 +139,7 @@ export default function Home() {
           <div className="nav-divider"></div>
           <a className="nav-item" data-page="passions" href="#passions">
             <span className="nav-icon">✦</span>
-            <span className="nav-label">Passions</span>
+            <span className="nav-label">Interests</span>
           </a>
           <div className="nav-divider nav-settings-divider"></div>
           <a className="nav-item nav-settings-item" data-page="settings" href="#settings">

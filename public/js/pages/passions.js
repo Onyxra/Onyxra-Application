@@ -89,7 +89,7 @@ window.registerPage('passions', function initPassions() {
   /* ── Build shell HTML ── */
   const inner = document.getElementById('passions-inner');
   inner.innerHTML = `
-    ${buildPageHeader('Music · Horses · Snow · Outdoors', 'Passions', 'Life',
+    ${buildPageHeader('Music · Horses · Snow · Outdoors', 'Interests', 'Life',
       'Your pursuits outside of work — track what you love.',
     )}
     <div id="passionPanel"></div>`;
@@ -103,7 +103,7 @@ window.registerPage('passions', function initPassions() {
   function buildPassionTabs() {
     const tabs = [
       ...passions().map(p => ({ id: p.id, label: p.icon + ' ' + p.name })),
-      { id: '__new__', label: '+ New Passion' },
+      { id: '__new__', label: '+ New Interest' },
     ];
     const activeId = showingNew ? '__new__' : (activePassionId || '__new__');
     setPageTabs(inner, tabs, activeId, id => {
@@ -135,8 +135,8 @@ window.registerPage('passions', function initPassions() {
         <div class="card">
           <div class="card-body" style="text-align:center;padding:48px">
             <div style="font-size:32px;margin-bottom:12px">✦</div>
-            <div style="font-size:15px;font-weight:600;margin-bottom:6px">No passions yet</div>
-            <div style="font-size:13px;color:var(--muted)">Click "+ New Passion" to add what you love.</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:6px">No interests yet</div>
+            <div style="font-size:13px;color:var(--muted)">Click "+ New Interest" to add what you love.</div>
           </div>
         </div>`;
     }
@@ -1320,7 +1320,7 @@ window.registerPage('passions', function initPassions() {
   function renderNewPassionForm(panel) {
     panel.innerHTML = `
       <div class="card">
-        <div class="card-header"><div class="card-title">Add New Passion</div></div>
+        <div class="card-header"><div class="card-title">Add New Interest</div></div>
         <div class="card-body">
           <div class="form-row">
             <div class="form-field">
@@ -1334,7 +1334,7 @@ window.registerPage('passions', function initPassions() {
           </div>
           <div class="form-field" style="margin-top:12px">
             <label class="form-label">Description</label>
-            <input class="form-input" id="npDesc" type="text" placeholder="One line about what this passion means to you…" />
+            <input class="form-input" id="npDesc" type="text" placeholder="One line about what this interest means to you…" />
           </div>
 
           <!-- Main blueprint picker -->
@@ -1366,7 +1366,7 @@ window.registerPage('passions', function initPassions() {
             </div>
           </div>` : ''}
 
-          <button class="phase-btn active" id="createPassion" style="margin-top:24px;padding:10px 24px;font-size:14px">Add Passion</button>
+          <button class="phase-btn active" id="createPassion" style="margin-top:24px;padding:10px 24px;font-size:14px">Add Interest</button>
           <div id="npError" style="color:var(--danger);font-size:12px;margin-top:8px;display:none"></div>
         </div>
       </div>`;

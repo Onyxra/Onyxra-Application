@@ -63,9 +63,9 @@ window.registerPage('dashboard', function initDashboard() {
         ventureCount: (bs.ventures || []).length,
         activeVenture: bs.ventures?.find(v => v.id === bs.activeVentureId)?.name || null,
       },
-      passions: {
-        passionCount: (ps.passions || []).length,
-        activePassion: ps.passions?.find(p => p.id === ps.activePassionId)?.name || null,
+      interests: {
+        interestCount: (ps.passions || []).length,
+        activeInterest: ps.passions?.find(p => p.id === ps.activePassionId)?.name || null,
       },
     };
   }
@@ -187,13 +187,13 @@ window.registerPage('dashboard', function initDashboard() {
       cta: { label: 'Open Business →', action: 'goto:business' },
     });
 
-    /* ── Passions Card ── */
+    /* ── Interests Card ── */
     const activePassion = ps.passions?.find(p => p.id === ps.activePassionId) || ps.passions?.[0];
     cards.push({
       id: 'passions',
       icon: '✦',
-      eyebrow: 'Passions',
-      title: activePassion ? `${activePassion.icon || '✦'} ${activePassion.name}` : 'No passions yet',
+      eyebrow: 'Interests',
+      title: activePassion ? `${activePassion.icon || '✦'} ${activePassion.name}` : 'No interests yet',
       accent: '#f06292',
       gradient: 'linear-gradient(135deg, rgba(240,98,146,0.15) 0%, rgba(244,143,177,0.05) 100%)',
       body: activePassion ? `
@@ -203,9 +203,9 @@ window.registerPage('dashboard', function initDashboard() {
           <div class="card-stat"><div class="card-stat-label">Journal</div><div class="card-stat-value">${(activePassion.journal || []).length}</div></div>
         </div>
       ` : `
-        <div class="card-empty">Add a passion to start tracking.</div>
+        <div class="card-empty">Add an interest to start tracking.</div>
       `,
-      cta: { label: 'Open Passions →', action: 'goto:passions' },
+      cta: { label: 'Open Interests →', action: 'goto:passions' },
     });
 
     return cards;
@@ -262,7 +262,7 @@ window.registerPage('dashboard', function initDashboard() {
                                             c.id === 'workout' ? 'Workout' :
                                             c.id === 'meals' ? 'Meals' :
                                             c.id === 'business' ? 'Business' :
-                                            c.id === 'passions' ? 'Passions' : c.id}</span>
+                                            c.id === 'passions' ? 'Interests' : c.id}</span>
             </button>
           `).join('')}
         </div>

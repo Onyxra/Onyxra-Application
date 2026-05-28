@@ -49,7 +49,7 @@ const PAGE_NAMES = {
   workout:   'Workout',
   business:  'Business',
   wealth:    'Wealth',
-  passions:  'Passions',
+  passions:  'Interests',
   settings:  'Settings',
 };
 
