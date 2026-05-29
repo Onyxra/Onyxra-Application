@@ -83,6 +83,9 @@ function navigateTo(page) {
   const drawerItem = document.querySelector(`.drawer-nav-item[data-page="${page}"]`);
   if (drawerItem) drawerItem.classList.add('active');
 
+  /* Update the category tabs hint at the top of mobile pages */
+  if (typeof updateCategoryHint === 'function') updateCategoryHint(page);
+
   /* Update URL hash (no page reload) */
   history.replaceState(null, '', '#' + page);
 
@@ -106,6 +109,147 @@ window.addEventListener('hashchange', () => {
   const hash = window.location.hash.replace('#', '');
   navigateTo(VALID_PAGES.includes(hash) ? hash : 'dashboard');
 });
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PAGE CATEGORIES — used by swipe gesture and the sibling hint.
+   Pages not listed here are non-swipeable (Dashboard, Settings, etc).
+═══════════════════════════════════════════════════════════════════ */
+const PAGE_CATEGORIES = {
+  workout:   { category: 'Health',        siblings: ['workout', 'nutrition'] },
+  nutrition: { category: 'Health',        siblings: ['workout', 'nutrition'] },
+  business:  { category: 'Wealth',        siblings: ['business', 'wealth'] },
+  wealth:    { category: 'Wealth',        siblings: ['business', 'wealth'] },
+  family:    { category: 'Relationships', siblings: ['family',  'friends'] },
+  friends:   { category: 'Relationships', siblings: ['family',  'friends'] },
+};
+
+function getCurrentPage() {
+  const h = window.location.hash.replace('#', '');
+  return VALID_PAGES.includes(h) ? h : 'dashboard';
+}
+
+function navigateCategorySibling(direction /* 'next' | 'prev' */) {
+  const current = getCurrentPage();
+  const info = PAGE_CATEGORIES[current];
+  if (!info) return false;
+  const sibs = info.siblings;
+  const idx = sibs.indexOf(current);
+  if (idx < 0) return false;
+  const len = sibs.length;
+  const newIdx = direction === 'next'
+    ? (idx + 1) % len
+    : (idx - 1 + len) % len;
+  if (sibs[newIdx] === current) return false;
+  navigateTo(sibs[newIdx]);
+  return true;
+}
+
+/* Category tabs indicator at the top of each swipe-capable page.
+   On mobile: small segmented control showing sibling pages.
+   On desktop: hidden (sidebar already handles navigation). */
+function updateCategoryHint(page) {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+  let hint = document.getElementById('categoryHint');
+
+  const info = PAGE_CATEGORIES[page];
+
+  if (!info) {
+    if (hint) hint.style.display = 'none';
+    return;
+  }
+
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'categoryHint';
+    hint.className = 'category-hint';
+    main.insertBefore(hint, main.firstChild);
+  }
+  hint.style.display = '';
+
+  hint.innerHTML = `
+    <div class="category-hint-label">${info.category}</div>
+    <div class="category-tabs">
+      ${info.siblings.map(s => `
+        <button class="category-tab${s === page ? ' active' : ''}" data-target="${s}">
+          ${PAGE_NAMES[s] || s}
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  hint.querySelectorAll('.category-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.target !== page) navigateTo(btn.dataset.target);
+    });
+  });
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE PAGE SWIPE — swipe left/right between category siblings.
+   Only fires under 768px. Skips when touch starts inside a child that
+   handles its own swipe (carousel, modal, drawer) or an input.
+═══════════════════════════════════════════════════════════════════ */
+(function setupPageSwipe() {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+
+  const SWIPE_DISTANCE_MIN = 80;     // px
+  const HORIZONTAL_DOMINANCE = 1.4;  // |dx| > |dy| * this
+
+  // Elements that handle their own touch gestures; we let them have priority
+  const SKIP_SELECTOR = [
+    '.card-track',              // dashboard AI hub carousel
+    '.modal', '.modal-overlay',
+    '.ex-modal', '.ex-modal-overlay',
+    '.notif-panel',
+    '.profile-drawer',
+    'input', 'textarea', 'select',
+    'button', 'a',
+    '[data-no-swipe]',
+  ].join(', ');
+
+  let startX = 0, startY = 0, tracking = false;
+
+  main.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    if (e.touches.length !== 1) return;
+
+    // Skip if touch starts on or inside a known interactive/swipeable child
+    if (e.target.closest(SKIP_SELECTOR)) return;
+
+    // Only enable on pages that have category siblings
+    if (!PAGE_CATEGORIES[getCurrentPage()]) return;
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  main.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (Math.abs(dx) < SWIPE_DISTANCE_MIN) return;
+    if (Math.abs(dx) < Math.abs(dy) * HORIZONTAL_DOMINANCE) return;
+
+    if (dx < 0) {
+      // Swipe left → next sibling
+      navigateCategorySibling('next');
+    } else {
+      // Swipe right → previous sibling
+      navigateCategorySibling('prev');
+    }
+  }, { passive: true });
+
+  main.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+})();
 
 /*
  * NOTE: Initial page load call (navigateTo) is at the bottom of
