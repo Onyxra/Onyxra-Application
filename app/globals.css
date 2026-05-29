@@ -4458,6 +4458,23 @@ body.onyx-gate-lock { overflow: hidden !important; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* the living AI orb (canvas hero) */
+.onyx-orb-wrap {
+  position: relative;
+  width: clamp(230px, 60vw, 380px);
+  aspect-ratio: 1 / 1;
+  margin-bottom: 14px;
+  display: grid;
+  place-items: center;
+}
+.onyx-orb {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  filter: drop-shadow(0 0 34px rgba(124,106,247,0.32));
+}
+
 /* logo mark */
 .onyx-gate-mark { position: relative; margin-bottom: 26px; }
 .onyx-mark-glow {
@@ -4476,10 +4493,10 @@ body.onyx-gate-lock { overflow: hidden !important; }
 
 .onyx-gate-word {
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(46px, 13vw, 92px);
+  font-size: clamp(32px, 8.5vw, 58px);
   font-weight: 700;
-  letter-spacing: clamp(8px, 3vw, 20px);
-  text-indent: clamp(8px, 3vw, 20px); /* compensate trailing letter-spacing for true centering */
+  letter-spacing: clamp(6px, 2.4vw, 15px);
+  text-indent: clamp(6px, 2.4vw, 15px); /* compensate trailing letter-spacing for true centering */
   margin: 0;
   line-height: 1;
   background: linear-gradient(120deg, #eaf6ff 0%, #9fd8ff 35%, #b9a9ff 70%, #eaf6ff 100%);

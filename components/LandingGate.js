@@ -5,25 +5,28 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * ONYXRA — Landing Gate
  *
- * An epic full-screen entry overlay shown on the main page. The background
- * reacts to pointer movement (mouse hover on desktop, touch-drag on mobile):
- * a glow follows the pointer and the aurora/content shift with subtle parallax.
+ * A living, JARVIS-style AI orb is the hero. It idles like it's "speaking"
+ * (organic blob wobble + a circular voice-waveform), and reacts to the
+ * pointer — mouse hover on desktop, touch-drag on mobile: the orb leans
+ * toward your pointer, bulges where you point, and ripples when you tap.
  *
  * PRIVACY NOTE: the owner's name is injected CLIENT-SIDE ONLY (after mount),
- * so it is never present in the server-rendered HTML, the page source, or
- * anything a non-JS scraper/crawler could read. Combined with the site-wide
- * noindex (robots meta + robots.txt + X-Robots-Tag), the name stays untied
- * to this site for search engines and simple scrapers.
+ * so it is never in the server-rendered HTML / page source. Combined with the
+ * site-wide noindex (robots meta + robots.txt + X-Robots-Tag), the name stays
+ * untied to this site for search engines and simple scrapers.
  */
 const OWNER_NAME = 'Koltyn Parsons';
 
 export default function LandingGate() {
-  // boot = nothing rendered yet (also the SSR state, so no name in source)
   const [phase, setPhase] = useState('boot'); // 'boot' | 'show' | 'leaving' | 'hidden'
   const [name, setName] = useState('');
+
   const gateRef = useRef(null);
+  const canvasRef = useRef(null);
   const rafRef = useRef(0);
   const pendingRef = useRef(null);
+  const pointerRef = useRef({ x: 0, y: 0, active: false });
+  const rippleRef = useRef(null); // set inside the canvas effect
 
   useEffect(() => {
     let entered = false;
@@ -32,27 +35,255 @@ export default function LandingGate() {
     } catch {
       /* sessionStorage may be unavailable */
     }
-
     if (entered) {
       setPhase('hidden');
     } else {
-      setName(OWNER_NAME); // client-only injection
+      setName(OWNER_NAME);
       setPhase('show');
       document.body.classList.add('onyx-gate-lock');
     }
-
     return () => {
       document.body.classList.remove('onyx-gate-lock');
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
-  // --- pointer-reactive background (mouse + touch), rAF-throttled ---
-  function applyPointer() {
-    rafRef.current = 0;
-    const p = pendingRef.current;
+  // ──────────────────────────────────────────────────────────────
+  // The living AI orb (canvas)
+  // ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return; // not shown yet
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const N = 80; // blob resolution
+    const BARS = 64; // voice waveform bars
+    let w = 0, h = 0, cx = 0, cy = 0, baseR = 0, rect = null;
+    let leanX = 0, leanY = 0, breath = 0;
+    const ripples = [];
+
+    rippleRef.current = () => ripples.push({ t: 0 });
+
+    function resize() {
+      rect = canvas.getBoundingClientRect();
+      w = rect.width || 320;
+      h = rect.height || 320;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = w / 2;
+      cy = h / 2;
+      baseR = Math.min(w, h) * 0.27;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const mix = (a, b, t) => Math.round(a + (b - a) * t);
+    const C_CYAN = [79, 195, 247];
+    const C_VIOL = [124, 106, 247];
+    const C_MINT = [61, 220, 180];
+
+    function blob(radius, amp, t, spin, pActive, pAngle, bulge, offX, offY) {
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const a = ((i % N) / N) * Math.PI * 2 + spin;
+        let r = radius;
+        r += Math.sin(a * 3 + t * 1.1) * amp;
+        r += Math.sin(a * 5 - t * 1.7) * amp * 0.55;
+        r += Math.sin(a * 2 + t * 0.6) * amp * 0.85;
+        if (pActive) {
+          const d = Math.cos(a - pAngle);
+          if (d > 0) r += d * d * d * bulge;
+        }
+        const x = cx + offX + Math.cos(a) * r;
+        const y = cy + offY + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    let startT = performance.now();
+    let lastT = startT;
+
+    function frame(now) {
+      const t = (now - startT) / 1000;
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      ctx.clearRect(0, 0, w, h);
+
+      // pointer (relative to orb center)
+      const p = pointerRef.current;
+      let pActive = false, pAngle = 0, relX = 0, relY = 0;
+      if (p && p.active && rect) {
+        relX = p.x - rect.left - cx;
+        relY = p.y - rect.top - cy;
+        pActive = true;
+        pAngle = Math.atan2(relY, relX);
+      }
+      const leanTargetX = pActive ? relX * 0.12 : 0;
+      const leanTargetY = pActive ? relY * 0.12 : 0;
+      const ease = reduced ? 1 : 0.08;
+      leanX += (leanTargetX - leanX) * ease;
+      leanY += (leanTargetY - leanY) * ease;
+
+      // "talking" envelope — layered noise so it reads like speech
+      const talk = reduced
+        ? 0.5
+        : 0.45 +
+          0.3 * (0.5 + 0.5 * Math.sin(t * 2.3)) +
+          0.25 * (0.5 + 0.5 * Math.sin(t * 6.1 + 1.3)) * (0.5 + 0.5 * Math.sin(t * 1.7));
+      breath += ((reduced ? 0.4 : talk) - breath) * 0.1;
+
+      const amp = baseR * (reduced ? 0.05 : 0.09) * (0.6 + breath);
+      const bulge = pActive ? baseR * 0.22 : 0;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+
+      // 1 — outer halo
+      blob(baseR * 1.45, amp * 0.7, t * 0.7, 0, pActive, pAngle, bulge * 0.6, leanX * 0.5, leanY * 0.5);
+      let g = ctx.createRadialGradient(cx + leanX, cy + leanY, baseR * 0.2, cx, cy, baseR * 1.7);
+      g.addColorStop(0, 'rgba(79,195,247,0.22)');
+      g.addColorStop(0.5, 'rgba(124,106,247,0.16)');
+      g.addColorStop(1, 'rgba(124,106,247,0)');
+      ctx.fillStyle = g;
+      ctx.shadowColor = 'rgba(124,106,247,0.55)';
+      ctx.shadowBlur = reduced ? 0 : 38;
+      ctx.fill();
+
+      // 2 — main body
+      blob(baseR, amp, t, 0, pActive, pAngle, bulge, leanX, leanY);
+      g = ctx.createRadialGradient(
+        cx + leanX - baseR * 0.25,
+        cy + leanY - baseR * 0.25,
+        baseR * 0.1,
+        cx + leanX,
+        cy + leanY,
+        baseR * 1.25
+      );
+      g.addColorStop(0, 'rgba(180,230,255,0.95)');
+      g.addColorStop(0.35, 'rgba(79,195,247,0.6)');
+      g.addColorStop(0.75, 'rgba(124,106,247,0.45)');
+      g.addColorStop(1, 'rgba(124,106,247,0.05)');
+      ctx.fillStyle = g;
+      ctx.shadowColor = 'rgba(79,195,247,0.7)';
+      ctx.shadowBlur = reduced ? 0 : 30;
+      ctx.fill();
+
+      // 3 — inner counter-rotating layer for depth
+      blob(baseR * 0.72, amp * 1.1, -t * 1.2, 0.6, pActive, pAngle, bulge * 0.5, leanX * 1.3, leanY * 1.3);
+      g = ctx.createRadialGradient(cx + leanX, cy + leanY, 0, cx + leanX, cy + leanY, baseR);
+      g.addColorStop(0, 'rgba(235,250,255,0.9)');
+      g.addColorStop(0.5, 'rgba(120,200,255,0.35)');
+      g.addColorStop(1, 'rgba(124,106,247,0)');
+      ctx.fillStyle = g;
+      ctx.shadowBlur = 0;
+      ctx.fill();
+      ctx.restore();
+
+      // 4 — bright pulsing core
+      const coreR = baseR * (0.16 + 0.05 * breath);
+      g = ctx.createRadialGradient(cx + leanX, cy + leanY, 0, cx + leanX, cy + leanY, coreR * 2.4);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.4, 'rgba(190,235,255,0.6)');
+      g.addColorStop(1, 'rgba(124,106,247,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx + leanX, cy + leanY, coreR * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 5 — circular voice waveform ("talking")
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      const wcx = cx + leanX * 0.6;
+      const wcy = cy + leanY * 0.6;
+      for (let i = 0; i < BARS; i++) {
+        const a = (i / BARS) * Math.PI * 2;
+        const env =
+          (0.5 + 0.5 * Math.sin(i * 0.7 + t * 4.2)) *
+          (0.5 + 0.5 * Math.sin(i * 0.27 - t * 2.6));
+        const len = baseR * (0.05 + 0.16 * env * (0.5 + breath));
+        const r1 = baseR * 1.18;
+        const x1 = wcx + Math.cos(a) * r1;
+        const y1 = wcy + Math.sin(a) * r1;
+        const x2 = wcx + Math.cos(a) * (r1 + len);
+        const y2 = wcy + Math.sin(a) * (r1 + len);
+        const tt = 0.5 + 0.5 * Math.sin(a * 1.5 + t * 0.8);
+        const col = [
+          mix(C_CYAN[0], C_VIOL[0], tt),
+          mix(C_CYAN[1], C_VIOL[1], tt),
+          mix(C_CYAN[2], C_VIOL[2], tt),
+        ];
+        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.25 + 0.55 * env})`;
+        ctx.lineWidth = baseR * 0.022;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 6 — HUD arcs (JARVIS rings)
+      if (!reduced) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(${C_MINT[0]},${C_MINT[1]},${C_MINT[2]},0.35)`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, baseR * 1.62, t * 0.5, t * 0.5 + 1.1);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, baseR * 1.62, t * 0.5 + Math.PI, t * 0.5 + Math.PI + 0.8);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(124,106,247,0.3)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, baseR * 1.78, -t * 0.35, -t * 0.35 + 0.6);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 7 — tap ripples
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rp = ripples[i];
+        rp.t += dt;
+        const rr = baseR * 1.0 + rp.t * 260;
+        const al = 0.5 - rp.t * 0.8;
+        if (al <= 0) {
+          ripples.splice(i, 1);
+          continue;
+        }
+        ctx.strokeStyle = `rgba(150,200,255,${al})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      rafRef.current = requestAnimationFrame(frame);
+    }
+    rafRef.current = requestAnimationFrame(frame);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('resize', resize);
+      rippleRef.current = null;
+    };
+  }, [phase]);
+
+  // ── pointer-reactive background + orb (mouse + touch), rAF-throttled ──
+  function applyVars() {
+    pendingRef.current = null;
+    const p = pointerRef.current;
     const el = gateRef.current;
-    if (!el || !p) return;
+    if (!el) return;
     const w = window.innerWidth || 1;
     const h = window.innerHeight || 1;
     el.style.setProperty('--gx', p.x + 'px');
@@ -61,26 +292,25 @@ export default function LandingGate() {
     el.style.setProperty('--dy', ((p.y / h - 0.5) * 2).toFixed(3));
   }
 
-  function schedule(x, y) {
-    pendingRef.current = { x, y };
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(applyPointer);
-  }
-
   function onPointerMove(e) {
-    schedule(e.clientX, e.clientY);
+    pointerRef.current = { x: e.clientX, y: e.clientY, active: true };
     const el = gateRef.current;
     if (el && !el.classList.contains('is-pointing')) el.classList.add('is-pointing');
+    if (!pendingRef.current) pendingRef.current = requestAnimationFrame(applyVars);
   }
-
+  function onPointerDown(e) {
+    pointerRef.current = { x: e.clientX, y: e.clientY, active: true };
+    if (rippleRef.current) rippleRef.current();
+    onPointerMove(e);
+  }
   function onPointerLeave() {
+    pointerRef.current = { ...pointerRef.current, active: false };
     const el = gateRef.current;
     if (el) el.classList.remove('is-pointing');
   }
-
   function onPointerUp(e) {
-    // For touch/pen, lifting ends the interaction; for mouse, keep glow on hover.
     if (e.pointerType !== 'mouse') {
+      pointerRef.current = { ...pointerRef.current, active: false };
       const el = gateRef.current;
       if (el) el.classList.remove('is-pointing');
     }
@@ -94,7 +324,7 @@ export default function LandingGate() {
     }
     document.body.classList.remove('onyx-gate-lock');
     setPhase('leaving');
-    setTimeout(() => setPhase('hidden'), 750); // match CSS transition
+    setTimeout(() => setPhase('hidden'), 750);
   }
 
   if (phase === 'boot' || phase === 'hidden') return null;
@@ -104,9 +334,9 @@ export default function LandingGate() {
       ref={gateRef}
       className={`onyx-gate${phase === 'leaving' ? ' onyx-gate--out' : ''}`}
       role="dialog"
-      aria-label="Welcome to Onyxra"
+      aria-label="Onyxra"
       onPointerMove={onPointerMove}
-      onPointerDown={onPointerMove}
+      onPointerDown={onPointerDown}
       onPointerLeave={onPointerLeave}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -121,18 +351,8 @@ export default function LandingGate() {
       </div>
 
       <div className="onyx-gate-content">
-        <div className="onyx-gate-mark">
-          <span className="onyx-mark-glow" aria-hidden="true" />
-          <svg viewBox="0 0 64 64" width="78" height="78" className="onyx-mark-svg" aria-hidden="true">
-            <defs>
-              <linearGradient id="onyxGateGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#4fc3f7" />
-                <stop offset="100%" stopColor="#7c6af7" />
-              </linearGradient>
-            </defs>
-            <rect x="3" y="3" width="58" height="58" rx="16" fill="none" stroke="url(#onyxGateGrad)" strokeWidth="2.5" opacity="0.55" />
-            <text x="32" y="44" textAnchor="middle" fill="url(#onyxGateGrad)" fontSize="38" fontWeight="700" fontFamily="Rajdhani, sans-serif">O</text>
-          </svg>
+        <div className="onyx-orb-wrap">
+          <canvas ref={canvasRef} className="onyx-orb" aria-hidden="true" />
         </div>
 
         <h1 className="onyx-gate-word">ONYXRA</h1>
@@ -143,20 +363,14 @@ export default function LandingGate() {
           <span />
         </div>
 
-        <p className="onyx-gate-tag">
-          An incredible life operating system
-          <br />
-          &amp; personal AI assistant
-        </p>
-
         {name && (
           <p className="onyx-gate-for">
-            <span className="onyx-gate-name">{name}</span>&rsquo;s&nbsp;OS
+            <span className="onyx-gate-name">{name}</span>&rsquo;s&nbsp;personal&nbsp;AI
           </p>
         )}
 
         <button type="button" className="onyx-gate-enter" onClick={enter}>
-          <span>Enter Onyxra</span>
+          <span>Enter</span>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
