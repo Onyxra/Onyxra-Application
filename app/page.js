@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Script from 'next/script';
 import { getSupabase } from '../lib/supabase';
+import LandingGate from '../components/LandingGate';
 
 export default function Home() {
 
@@ -25,6 +26,9 @@ export default function Home() {
 
   return (
     <>
+      {/* ══ EPIC LANDING / ENTRY GATE ══ */}
+      <LandingGate />
+
       {/* ══ MOBILE TOP BAR ══ */}
       <div className="mobile-topbar" id="mobileTopbar">
         <button className="topbar-btn" id="hamburgerBtn" aria-label="Open menu">

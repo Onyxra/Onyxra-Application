@@ -4325,3 +4325,217 @@ select.form-input option { background: #141920; color: var(--text); }
   .hub-card-title { font-size: 19px; }
 }
 
+/* ============================================================
+   ONYXRA — Landing Gate (epic full-screen entry overlay)
+   ============================================================ */
+.onyx-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 22px;
+  background: #06080c;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.75s ease, transform 0.75s ease, filter 0.75s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.onyx-gate--out {
+  opacity: 0;
+  transform: scale(1.05);
+  filter: blur(10px);
+  pointer-events: none;
+}
+body.onyx-gate-lock { overflow: hidden !important; }
+
+/* --- background layers --- */
+.onyx-gate-bg { position: absolute; inset: 0; overflow: hidden; }
+.onyx-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.onyx-aurora--a {
+  width: 60vmax; height: 60vmax;
+  left: -15vmax; top: -20vmax;
+  background: radial-gradient(circle at center, rgba(79,195,247,0.9), rgba(79,195,247,0) 60%);
+  animation: onyxDrift1 18s ease-in-out infinite;
+}
+.onyx-aurora--b {
+  width: 55vmax; height: 55vmax;
+  right: -15vmax; bottom: -18vmax;
+  background: radial-gradient(circle at center, rgba(124,106,247,0.9), rgba(124,106,247,0) 60%);
+  animation: onyxDrift2 22s ease-in-out infinite;
+}
+.onyx-aurora--c {
+  width: 42vmax; height: 42vmax;
+  left: 34%; top: 38%;
+  background: radial-gradient(circle at center, rgba(61,220,180,0.5), rgba(61,220,180,0) 60%);
+  animation: onyxDrift3 26s ease-in-out infinite;
+  opacity: 0.4;
+}
+.onyx-grid {
+  position: absolute; inset: -2px;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 75%);
+}
+.onyx-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 42%, transparent 32%, rgba(2,4,8,0.85) 100%);
+}
+
+@keyframes onyxDrift1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50% { transform: translate(8vmax, 6vmax) scale(1.12); }
+}
+@keyframes onyxDrift2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50% { transform: translate(-7vmax, -5vmax) scale(1.1); }
+}
+@keyframes onyxDrift3 {
+  0%,100% { transform: translate(-50%,-50%) scale(1); }
+  50% { transform: translate(-40%,-62%) scale(1.2); }
+}
+
+/* --- content --- */
+.onyx-gate-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.onyx-gate-content > * {
+  opacity: 0;
+  animation: onyxFadeUp 0.9s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+.onyx-gate-content > *:nth-child(1) { animation-delay: 0.15s; }
+.onyx-gate-content > *:nth-child(2) { animation-delay: 0.30s; }
+.onyx-gate-content > *:nth-child(3) { animation-delay: 0.42s; }
+.onyx-gate-content > *:nth-child(4) { animation-delay: 0.54s; }
+.onyx-gate-content > *:nth-child(5) { animation-delay: 0.66s; }
+.onyx-gate-content > *:nth-child(6) { animation-delay: 0.80s; }
+.onyx-gate-content > *:nth-child(7) { animation-delay: 0.95s; }
+
+@keyframes onyxFadeUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* logo mark */
+.onyx-gate-mark { position: relative; margin-bottom: 26px; }
+.onyx-mark-glow {
+  position: absolute; left: 50%; top: 50%;
+  width: 160px; height: 160px;
+  transform: translate(-50%,-50%);
+  background: radial-gradient(circle, rgba(124,106,247,0.55), transparent 65%);
+  filter: blur(14px);
+  animation: onyxPulse 3.4s ease-in-out infinite;
+}
+.onyx-mark-svg { position: relative; display: block; }
+@keyframes onyxPulse {
+  0%,100% { opacity: 0.55; transform: translate(-50%,-50%) scale(1); }
+  50% { opacity: 0.95; transform: translate(-50%,-50%) scale(1.12); }
+}
+
+.onyx-gate-word {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(46px, 13vw, 92px);
+  font-weight: 700;
+  letter-spacing: clamp(8px, 3vw, 20px);
+  text-indent: clamp(8px, 3vw, 20px); /* compensate trailing letter-spacing for true centering */
+  margin: 0;
+  line-height: 1;
+  background: linear-gradient(120deg, #eaf6ff 0%, #9fd8ff 35%, #b9a9ff 70%, #eaf6ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 40px rgba(124,106,247,0.25);
+}
+
+.onyx-gate-rule {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0 18px;
+  width: 240px; max-width: 72%;
+}
+.onyx-gate-rule span {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(159,216,255,0.6), transparent);
+}
+.onyx-gate-rule i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: linear-gradient(135deg, #4fc3f7, #7c6af7);
+  box-shadow: 0 0 10px rgba(124,106,247,0.8);
+}
+
+.onyx-gate-tag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(14px, 3.6vw, 17px);
+  line-height: 1.6;
+  color: rgba(231,240,255,0.72);
+  margin: 0;
+  font-weight: 300;
+}
+
+.onyx-gate-for {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(13px, 3.4vw, 15px);
+  color: rgba(231,240,255,0.5);
+  margin: 22px 0 0;
+  font-style: italic;
+  letter-spacing: 0.3px;
+}
+.onyx-gate-name {
+  font-style: normal;
+  font-weight: 600;
+  background: linear-gradient(120deg, #4fc3f7, #7c6af7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.5px;
+}
+
+.onyx-gate-enter {
+  margin-top: 38px;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 15px 34px;
+  border: none; border-radius: 100px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: #06080c;
+  background: linear-gradient(135deg, #4fc3f7 0%, #7c6af7 100%);
+  cursor: pointer;
+  box-shadow: 0 10px 40px rgba(79,195,247,0.35), inset 0 0 0 1px rgba(255,255,255,0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+}
+.onyx-gate-enter svg { transition: transform 0.25s ease; }
+.onyx-gate-enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 54px rgba(124,106,247,0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
+  filter: brightness(1.05);
+}
+.onyx-gate-enter:hover svg { transform: translateX(4px); }
+.onyx-gate-enter:active { transform: translateY(0); }
+
+.onyx-gate-foot {
+  margin: 30px 0 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(231,240,255,0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onyx-aurora, .onyx-mark-glow { animation: none; }
+  .onyx-gate-content > * { animation-duration: 0.01s; animation-delay: 0s; }
+}
+
