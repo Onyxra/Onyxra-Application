@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * ONYXRA — Landing Gate
  *
- * An epic full-screen entry overlay shown on the main page.
+ * An epic full-screen entry overlay shown on the main page. The background
+ * reacts to pointer movement (mouse hover on desktop, touch-drag on mobile):
+ * a glow follows the pointer and the aurora/content shift with subtle parallax.
  *
  * PRIVACY NOTE: the owner's name is injected CLIENT-SIDE ONLY (after mount),
  * so it is never present in the server-rendered HTML, the page source, or
@@ -19,6 +21,9 @@ export default function LandingGate() {
   // boot = nothing rendered yet (also the SSR state, so no name in source)
   const [phase, setPhase] = useState('boot'); // 'boot' | 'show' | 'leaving' | 'hidden'
   const [name, setName] = useState('');
+  const gateRef = useRef(null);
+  const rafRef = useRef(0);
+  const pendingRef = useRef(null);
 
   useEffect(() => {
     let entered = false;
@@ -36,8 +41,50 @@ export default function LandingGate() {
       document.body.classList.add('onyx-gate-lock');
     }
 
-    return () => document.body.classList.remove('onyx-gate-lock');
+    return () => {
+      document.body.classList.remove('onyx-gate-lock');
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
+
+  // --- pointer-reactive background (mouse + touch), rAF-throttled ---
+  function applyPointer() {
+    rafRef.current = 0;
+    const p = pendingRef.current;
+    const el = gateRef.current;
+    if (!el || !p) return;
+    const w = window.innerWidth || 1;
+    const h = window.innerHeight || 1;
+    el.style.setProperty('--gx', p.x + 'px');
+    el.style.setProperty('--gy', p.y + 'px');
+    el.style.setProperty('--dx', ((p.x / w - 0.5) * 2).toFixed(3));
+    el.style.setProperty('--dy', ((p.y / h - 0.5) * 2).toFixed(3));
+  }
+
+  function schedule(x, y) {
+    pendingRef.current = { x, y };
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(applyPointer);
+  }
+
+  function onPointerMove(e) {
+    schedule(e.clientX, e.clientY);
+    const el = gateRef.current;
+    if (el && !el.classList.contains('is-pointing')) el.classList.add('is-pointing');
+  }
+
+  function onPointerLeave() {
+    const el = gateRef.current;
+    if (el) el.classList.remove('is-pointing');
+  }
+
+  function onPointerUp(e) {
+    // For touch/pen, lifting ends the interaction; for mouse, keep glow on hover.
+    if (e.pointerType !== 'mouse') {
+      const el = gateRef.current;
+      if (el) el.classList.remove('is-pointing');
+    }
+  }
 
   function enter() {
     try {
@@ -54,15 +101,22 @@ export default function LandingGate() {
 
   return (
     <div
+      ref={gateRef}
       className={`onyx-gate${phase === 'leaving' ? ' onyx-gate--out' : ''}`}
       role="dialog"
       aria-label="Welcome to Onyxra"
+      onPointerMove={onPointerMove}
+      onPointerDown={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       <div className="onyx-gate-bg" aria-hidden="true">
         <span className="onyx-aurora onyx-aurora--a" />
         <span className="onyx-aurora onyx-aurora--b" />
         <span className="onyx-aurora onyx-aurora--c" />
         <span className="onyx-grid" />
+        <span className="onyx-cursor-glow" />
         <span className="onyx-vignette" />
       </div>
 
@@ -97,7 +151,7 @@ export default function LandingGate() {
 
         {name && (
           <p className="onyx-gate-for">
-            crafted for <span className="onyx-gate-name">{name}</span>
+            <span className="onyx-gate-name">{name}</span>&rsquo;s&nbsp;OS
           </p>
         )}
 

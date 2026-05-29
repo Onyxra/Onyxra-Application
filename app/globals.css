@@ -4341,6 +4341,7 @@ select.form-input option { background: #141920; color: var(--text); }
   opacity: 1;
   transition: opacity 0.75s ease, transform 0.75s ease, filter 0.75s ease;
   -webkit-tap-highlight-color: transparent;
+  touch-action: none; /* let touch-drag drive the reactive background */
 }
 .onyx-gate--out {
   opacity: 0;
@@ -4351,7 +4352,29 @@ select.form-input option { background: #141920; color: var(--text); }
 body.onyx-gate-lock { overflow: hidden !important; }
 
 /* --- background layers --- */
-.onyx-gate-bg { position: absolute; inset: 0; overflow: hidden; }
+.onyx-gate-bg {
+  position: absolute; inset: 0; overflow: hidden;
+  /* pointer parallax — shifts with mouse/touch (vars set in JS, default centered) */
+  transform: translate3d(calc(var(--dx, 0) * 16px), calc(var(--dy, 0) * 16px), 0) scale(1.08);
+  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+  will-change: transform;
+}
+
+/* glow that follows the pointer (mouse hover / touch-drag) */
+.onyx-cursor-glow {
+  position: absolute;
+  top: 0; left: 0;
+  width: 540px; height: 540px;
+  margin: -270px 0 0 -270px; /* center the blob on its origin */
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,106,247,0.24) 0%, rgba(79,195,247,0.13) 35%, transparent 65%);
+  transform: translate3d(var(--gx, 50vw), var(--gy, 40vh), 0);
+  transition: transform 0.16s ease-out, opacity 0.4s ease;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.onyx-gate.is-pointing .onyx-cursor-glow { opacity: 1; }
 .onyx-aurora {
   position: absolute;
   border-radius: 50%;
@@ -4414,6 +4437,9 @@ body.onyx-gate-lock { overflow: hidden !important; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* subtle counter-parallax for depth (opposite direction to background) */
+  transform: translate3d(calc(var(--dx, 0) * -9px), calc(var(--dy, 0) * -9px), 0);
+  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
 }
 .onyx-gate-content > * {
   opacity: 0;
@@ -4537,5 +4563,8 @@ body.onyx-gate-lock { overflow: hidden !important; }
 @media (prefers-reduced-motion: reduce) {
   .onyx-aurora, .onyx-mark-glow { animation: none; }
   .onyx-gate-content > * { animation-duration: 0.01s; animation-delay: 0s; }
+  .onyx-gate-bg { transform: scale(1.08); transition: none; }
+  .onyx-gate-content { transform: none; transition: none; }
+  .onyx-cursor-glow { display: none; }
 }
 
