@@ -15,10 +15,12 @@ import { createSupabaseServer } from '../../../lib/supabase-server';
 
 export const runtime = 'edge';
 
-// Model can be overridden without a redeploy by setting AI_GATEWAY_MODEL,
-// or per-request via the `model` field in the POST body (used for probing
-// which models the current AI Gateway plan allows).
-const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || 'anthropic/claude-sonnet-4-5';
+// Default to a model the Vercel AI Gateway FREE tier allows. Verified 200 OK
+// on 2026-05-28: openai/gpt-4o-mini, openai/gpt-5-mini, google/gemini-2.0-flash.
+// Premium models (e.g. anthropic/claude-sonnet-4-5) require paid credits — once
+// credits are added, switch instantly by setting the AI_GATEWAY_MODEL env var
+// (no code redeploy needed), or per-request via the `model` field in the body.
+const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || 'openai/gpt-4o-mini';
 
 function buildSystemPrompt(profile, snapshot) {
   const name = profile?.display_name || snapshot?.profile?.name || 'there';
@@ -101,10 +103,21 @@ export async function POST(request) {
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('[AI Gateway] Error:', upstream.status, errText);
-      return Response.json(
-        { error: `AI Gateway returned ${upstream.status}: ${errText.slice(0, 200)}` },
-        { status: 502 }
-      );
+
+      // Translate the common gateway failures into a human sentence so the orb
+      // says something sensible instead of dumping raw JSON into the chat.
+      let friendly;
+      if (upstream.status === 429) {
+        friendly = "I'm thinking a little too fast — that's the free-tier rate limit. Give me a few seconds, then ask again.";
+      } else if (upstream.status === 403) {
+        friendly = 'That model needs paid AI credits. Add credits in Vercel (or point AI_GATEWAY_MODEL at a free model) and I’ll be right back.';
+      } else {
+        let detail = errText.slice(0, 160);
+        try { detail = JSON.parse(errText)?.error?.message || detail; } catch {}
+        friendly = `AI hiccup (${upstream.status}): ${detail}`;
+      }
+
+      return Response.json({ error: friendly }, { status: 502 });
     }
 
     const data = await upstream.json();
