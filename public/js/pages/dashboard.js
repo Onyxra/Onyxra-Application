@@ -351,8 +351,8 @@ window.registerPage('dashboard', function initDashboard() {
 
   const SUGGESTIONS = [
     'What should I focus on today?',
-    "How's my week going?",
-    'Give me a quick life snapshot',
+    'Add a task: call the bank',
+    'I weighed 182 today',
   ];
 
   const SECTORS = [
@@ -378,6 +378,9 @@ window.registerPage('dashboard', function initDashboard() {
             </button>
           </div>
         </div>
+
+        <!-- Today command center (Life Rings + streak + mood + habits + focus) -->
+        <div class="onyx-today" id="onyxToday"></div>
 
         <!-- Suggested prompts -->
         <div class="ai-suggest">
@@ -412,6 +415,17 @@ window.registerPage('dashboard', function initDashboard() {
     initOrb();
     initChat();
     initVoice();
+    renderToday();
+
+    // Re-render the Today layer whenever state changes anywhere (chat actions,
+    // quick capture, pull-to-refresh). Idempotent: the listener is added once
+    // and always calls the latest renderToday via window.__renderToday.
+    window.__renderToday = renderToday;
+    if (!window.__onyxTodayListener) {
+      window.__onyxTodayListener = true;
+      ['onyxra:state-changed', 'onyxra:refresh'].forEach(ev =>
+        window.addEventListener(ev, () => { try { window.__renderToday && window.__renderToday(); } catch (e) {} }));
+    }
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -477,7 +491,10 @@ window.registerPage('dashboard', function initDashboard() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, snapshot: buildSnapshot() }),
+        body: JSON.stringify({
+          messages,
+          snapshot: window.buildOnyxraSnapshot ? window.buildOnyxraSnapshot() : buildSnapshot(),
+        }),
       });
 
       typingEl.remove();
@@ -491,9 +508,20 @@ window.registerPage('dashboard', function initDashboard() {
       }
 
       const data = await res.json();
-      const reply = data.reply || '...';
-      messages.push({ role: 'assistant', content: reply });
+      const raw = data.reply || '...';
+
+      // Agentic: pull any action block out, apply it, show what changed.
+      const parsed = window.parseOnyxraActions ? window.parseOnyxraActions(raw) : { clean: raw, actions: [] };
+      const chips = (window.applyOnyxraActions && parsed.actions.length) ? window.applyOnyxraActions(parsed.actions) : [];
+      const reply = parsed.clean || (chips.length ? 'Done ✓' : raw);
+
+      messages.push({ role: 'assistant', content: reply });   // store CLEAN text only
       appendMessage('assistant', reply);
+      if (chips.length) {
+        appendActionChips(chips);
+        renderToday();                                          // reflect changes immediately
+        if (window.toast) window.toast(chips.length === 1 ? chips[0].label : (chips.length + ' updates applied'), { type: 'success', duration: 1800 });
+      }
 
       const dur = Math.max(1800, Math.min(6500, reply.length * 32));
       if (voiceOn && 'speechSynthesis' in window) {
@@ -531,6 +559,17 @@ window.registerPage('dashboard', function initDashboard() {
     thread.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
     return el;
+  }
+
+  /** Render confirmation chips under the last assistant reply (what changed). */
+  function appendActionChips(chips) {
+    const thread = document.getElementById('aiThread');
+    if (!thread || !chips || !chips.length) return;
+    const el = document.createElement('div');
+    el.className = 'ai-action-chips';
+    el.innerHTML = chips.map(c => `<span class="ai-action-chip">${escapeHtml(c.icon || '✓')} ${escapeHtml(c.label)}</span>`).join('');
+    thread.appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -650,6 +689,210 @@ window.registerPage('dashboard', function initDashboard() {
     }
 
     micBtn.addEventListener('click', () => listening ? stopListening() : startListening());
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     TODAY — Life Rings, streak, mood, focus/tasks, habits.
+     A glanceable command center that lives under the orb.
+  ───────────────────────────────────────────────────────────── */
+  const MOODS = [[1, '😞'], [2, '😕'], [3, '😐'], [4, '🙂'], [5, '🤩']];
+
+  function ringSvg(t) {
+    const arc = (r, frac, cls) => {
+      const c = 2 * Math.PI * r;
+      const off = c * (1 - Math.max(0, Math.min(1, frac)));
+      return `<circle class="onyx-ring-bg" cx="60" cy="60" r="${r}"></circle>
+        <circle class="onyx-ring-fg ${cls}" cx="60" cy="60" r="${r}"
+          stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+          transform="rotate(-90 60 60)"></circle>`;
+    };
+    return `<svg viewBox="0 0 120 120" class="onyx-rings-svg" aria-hidden="true">
+      ${arc(52, t.focus.frac, 'r-focus')}
+      ${arc(40.5, t.body.frac, 'r-body')}
+      ${arc(29, t.connect.frac, 'r-connect')}
+    </svg>`;
+  }
+
+  function sparkline(series, cls) {
+    const pts = (series || []).slice(-12);
+    if (pts.length < 2) return '';
+    const vals = pts.map(p => p.value);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1;
+    const W = 120, H = 30;
+    const coords = pts.map((p, i) => {
+      const x = (i / (pts.length - 1)) * W;
+      const y = H - ((p.value - min) / span) * (H - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" class="onyx-spark ${cls}" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points="${coords.join(' ')}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  function renderToday() {
+    const host = document.getElementById('onyxToday');
+    if (!host || !STATE.computeToday) return;
+    const t = STATE.computeToday();
+    const habits = STATE.data.habits?.items || [];
+    const tasks = (STATE.data.dashboard.tasks || []);
+    const openTasks = tasks.filter(x => !x.done).slice(0, 5);
+    const doneCount = tasks.filter(x => x.done).length;
+    const priority = STATE.data.dashboard.weeklyTopPriority || '';
+    const wSeries = STATE.data.metrics?.weight || [];
+    const overallPct = Math.round(t.overall * 100);
+
+    host.innerHTML = `
+      <div class="onyx-card onyx-today-card">
+        <div class="onyx-rings">
+          <div class="onyx-rings-stack">
+            ${ringSvg(t)}
+            <div class="onyx-rings-center">
+              <div class="onyx-rings-pct">${overallPct}<span>%</span></div>
+              <div class="onyx-rings-sub">today</div>
+            </div>
+          </div>
+          <div class="onyx-rings-side">
+            <div class="onyx-streak"><span class="onyx-streak-flame">🔥</span><b>${t.streak}</b><span class="onyx-streak-lbl">day${t.streak === 1 ? '' : 's'}</span></div>
+            <button class="onyx-leg r-focus" data-ring="focus"><span class="onyx-leg-dot"></span>Focus<b>${t.focus.value}/${t.focus.goal}</b></button>
+            <button class="onyx-leg r-body" data-ring="body"><span class="onyx-leg-dot"></span>Body<b>${Math.round(t.body.frac * 100)}%</b></button>
+            <button class="onyx-leg r-connect" data-ring="connect"><span class="onyx-leg-dot"></span>Connect<b>${Math.round(t.connect.frac * 100)}%</b></button>
+          </div>
+        </div>
+
+        <div class="onyx-mood">
+          <span class="onyx-mood-label">${t.moodToday ? 'Today’s mood' : 'How are you feeling?'}</span>
+          <div class="onyx-mood-row">
+            ${MOODS.map(m => `<button class="onyx-mood-pick${t.moodToday === m[0] ? ' on' : ''}" data-mood="${m[0]}" aria-label="Mood ${m[0]}">${m[1]}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="onyx-card onyx-focus-card">
+        <div class="onyx-focus-priority">
+          <span class="onyx-focus-star">⭐</span>
+          <input class="onyx-priority-input" id="onyxPriorityInput" value="${escapeHtml(priority)}" placeholder="Your #1 focus this week…" />
+        </div>
+        <div class="onyx-tasks" id="onyxTasks">
+          ${openTasks.length ? openTasks.map(x => `
+            <div class="onyx-task" data-task="${x.id}">
+              <button class="onyx-task-check" data-check="${x.id}" aria-label="Complete"></button>
+              <span class="onyx-task-text">${escapeHtml(x.text)}</span>
+              <button class="onyx-task-del" data-del="${x.id}" aria-label="Delete">✕</button>
+            </div>`).join('') : `<div class="onyx-tasks-empty">No open tasks. Ask me to add one, or type below. 🎯</div>`}
+        </div>
+        <form class="onyx-task-add" id="onyxTaskAdd">
+          <input class="onyx-task-add-input" id="onyxTaskInput" placeholder="Add a task…" autocomplete="off" />
+          <button class="onyx-task-add-btn" type="submit" aria-label="Add task">+</button>
+        </form>
+        ${doneCount ? `<div class="onyx-focus-foot">${doneCount} done all-time${wSeries.length >= 2 ? ' · weight trend' : ''} ${wSeries.length >= 2 ? sparkline(wSeries, 'sp-weight') : ''}</div>` : ''}
+      </div>
+
+      <div class="onyx-card onyx-habits-card">
+        <div class="onyx-habits-head"><span>Daily habits</span><button class="onyx-habit-add-btn" id="onyxHabitAdd" type="button">+ Add</button></div>
+        <div class="onyx-habits-row" id="onyxHabitsRow">
+          ${habits.length ? habits.map(h => {
+            const done = !!(h.log && h.log[t.day]);
+            const streak = STATE.habitStreak(h.id);
+            return `<button class="onyx-habit${done ? ' done' : ''}" data-habit="${h.id}" style="--hc:${escapeHtml(h.color || '#4fc3f7')}">
+              <span class="onyx-habit-icon">${escapeHtml(h.icon || '✅')}</span>
+              <span class="onyx-habit-name">${escapeHtml(h.name)}</span>
+              ${streak > 0 ? `<span class="onyx-habit-streak">🔥${streak}</span>` : ''}
+            </button>`;
+          }).join('') : `<div class="onyx-habits-empty">No habits yet. Tap “+ Add” or say “add a habit to read 20 minutes.”</div>`}
+        </div>
+      </div>
+    `;
+    wireToday();
+  }
+
+  function wireToday() {
+    const host = document.getElementById('onyxToday');
+    if (!host) return;
+
+    // Mood
+    host.querySelectorAll('.onyx-mood-pick').forEach(b => b.addEventListener('click', () => {
+      STATE.setTodayMood(Number(b.dataset.mood));
+      if (window.haptic) window.haptic('success');
+      if (window.toast) window.toast('Mood logged', { type: 'success', duration: 1200 });
+      renderToday();
+    }));
+
+    // Ring legend → jump to the relevant area
+    host.querySelectorAll('.onyx-leg').forEach(b => b.addEventListener('click', () => {
+      const r = b.dataset.ring;
+      if (r === 'body') navigateTo('workout');
+      else if (r === 'connect') navigateTo('relationship');
+      else { const i = document.getElementById('onyxTaskInput'); if (i) i.focus(); }
+    }));
+
+    // Priority — save on blur / Enter
+    const pin = host.querySelector('#onyxPriorityInput');
+    if (pin) {
+      const save = () => { const v = pin.value.trim(); if (v !== (STATE.data.dashboard.weeklyTopPriority || '')) { STATE.setWeeklyPriority(v); if (window.haptic) window.haptic('tap'); } };
+      pin.addEventListener('blur', save);
+      pin.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); pin.blur(); } });
+    }
+
+    // Tasks — toggle / delete / add
+    host.querySelectorAll('[data-check]').forEach(b => b.addEventListener('click', () => {
+      STATE.toggleTask(b.dataset.check); if (window.haptic) window.haptic('success'); renderToday();
+    }));
+    host.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      STATE.removeTask(b.dataset.del); if (window.haptic) window.haptic('tap'); renderToday();
+    }));
+    const taskForm = host.querySelector('#onyxTaskAdd');
+    if (taskForm) taskForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = host.querySelector('#onyxTaskInput');
+      const v = (input.value || '').trim();
+      if (!v) return;
+      STATE.addTask(v); input.value = '';
+      if (window.haptic) window.haptic('tap');
+      renderToday();
+      setTimeout(() => { const i = document.getElementById('onyxTaskInput'); if (i) i.focus(); }, 0);
+    });
+
+    // Habits — tick / add
+    host.querySelectorAll('[data-habit]').forEach(b => b.addEventListener('click', () => {
+      const on = STATE.tickHabit(b.dataset.habit);
+      if (window.haptic) window.haptic(on ? 'success' : 'tap');
+      renderToday();
+    }));
+    const addBtn = host.querySelector('#onyxHabitAdd');
+    if (addBtn) addBtn.addEventListener('click', () => showHabitAdd());
+  }
+
+  function showHabitAdd() {
+    const row = document.getElementById('onyxHabitsRow');
+    if (!row) return;
+    const RINGS = [['focus', '🎯', '#4fc3f7'], ['body', '💪', '#ff6b35'], ['connect', '💬', '#f06292']];
+    row.innerHTML = `
+      <form class="onyx-habit-form" id="onyxHabitForm">
+        <input class="onyx-habit-input" id="onyxHabitName" placeholder="New habit (e.g. Read 20 min)" autocomplete="off" />
+        <div class="onyx-habit-rings">
+          ${RINGS.map((r, i) => `<button type="button" class="onyx-habit-ringpick${i === 0 ? ' on' : ''}" data-ring="${r[0]}" data-icon="${r[1]}" data-color="${r[2]}" title="${r[0]}">${r[1]}</button>`).join('')}
+        </div>
+        <button class="onyx-habit-save" type="submit">Add</button>
+      </form>`;
+    const form = document.getElementById('onyxHabitForm');
+    const name = document.getElementById('onyxHabitName');
+    let pick = { ring: 'focus', icon: '🎯', color: '#4fc3f7' };
+    row.querySelectorAll('.onyx-habit-ringpick').forEach(b => b.addEventListener('click', () => {
+      row.querySelectorAll('.onyx-habit-ringpick').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      pick = { ring: b.dataset.ring, icon: b.dataset.icon, color: b.dataset.color };
+    }));
+    setTimeout(() => name && name.focus(), 50);
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = (name.value || '').trim();
+      if (!v) { renderToday(); return; }
+      STATE.addHabit(v, pick.icon, pick.color, pick.ring);
+      if (window.haptic) window.haptic('success');
+      if (window.toast) window.toast('Habit added', { type: 'success', duration: 1400 });
+      renderToday();
+    });
   }
 
   /* ─────────────────────────────────────────────────────────────

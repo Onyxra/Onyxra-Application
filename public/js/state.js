@@ -172,7 +172,50 @@ function _defaultState() {
     },
 
     wealth: {},
+
+    /* ── Journal ──
+       Daily reflections + mood. One or more entries per day.
+       mood is 1..5 (😞 😕 😐 🙂 🤩) or null. */
+    journal: {
+      entries: [],      // { id, date(ISO), day('YYYY-MM-DD'), mood, text, tags:[] }
+    },
+
+    /* ── Habits ──
+       Recurring daily habits with a per-day completion log.
+       log is a map { 'YYYY-MM-DD': true }. */
+    habits: {
+      items: [],        // { id, name, icon, color, ring, createdAt, log:{} }
+    },
+
+    /* ── Metrics ──
+       Lightweight time-series for charting trends. Each series is an
+       array of { day:'YYYY-MM-DD', value:Number, at:ISO }. */
+    metrics: {
+      weight:   [],
+      bodyfat:  [],
+      networth: [],
+      mood:     [],     // mirrors journal mood for quick sparklines
+    },
+
+    /* ── Life ──
+       Cross-cutting "today" engine: day streak + ring goals. */
+    life: {
+      streak: 0,
+      lastActiveDay: null,    // 'YYYY-MM-DD' of last day with any logged activity
+      bestStreak: 0,
+      ringGoals: { focus: 3, body: 1, connect: 1 },   // tasks done, body actions, people touches
+    },
   };
+}
+
+/* Local date key 'YYYY-MM-DD' (NOT UTC — respects the user's timezone so
+   "today" matches the calendar on their device). */
+function _dayKey(d) {
+  d = d || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -243,6 +286,10 @@ window.STATE = {
           friends:      this.data.friends       || { activeMemberId: null, members: [] },
           relationship: this.data.relationship  || { name: '', icon: '💕', startDate: null, notes: '', updates: [], dates: [], giftIdeas: [] },
           wealth:       this.data.wealth        || {},
+          journal:      this.data.journal       || { entries: [] },
+          habits:       this.data.habits        || { items: [] },
+          metrics:      this.data.metrics       || { weight: [], bodyfat: [], networth: [], mood: [] },
+          life:         this.data.life          || { streak: 0, lastActiveDay: null, bestStreak: 0, ringGoals: { focus: 3, body: 1, connect: 1 } },
         })
         .eq('user_id', _userId);
       if (error) throw error;
@@ -294,6 +341,10 @@ window.STATE = {
               friends:      stateRow.friends       || _defaultState().friends,
               relationship: stateRow.relationship  || _defaultState().relationship,
               wealth:       stateRow.wealth        || {},
+              journal:      stateRow.journal       || _defaultState().journal,
+              habits:       stateRow.habits        || _defaultState().habits,
+              metrics:      stateRow.metrics       || _defaultState().metrics,
+              life:         stateRow.life          || _defaultState().life,
             };
             this._migrate();
             console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
@@ -346,6 +397,19 @@ window.STATE = {
     if (!this.data.friends)      this.data.friends      = d.friends;
     if (!this.data.relationship) this.data.relationship = d.relationship;
     if (!this.data.wealth)    this.data.wealth    = {};
+    if (!this.data.journal)   this.data.journal   = d.journal;
+    if (!Array.isArray(this.data.journal.entries)) this.data.journal.entries = [];
+    if (!this.data.habits)    this.data.habits    = d.habits;
+    if (!Array.isArray(this.data.habits.items)) this.data.habits.items = [];
+    if (!this.data.metrics)   this.data.metrics   = d.metrics;
+    ['weight','bodyfat','networth','mood'].forEach(k => {
+      if (!Array.isArray(this.data.metrics[k])) this.data.metrics[k] = [];
+    });
+    if (!this.data.life)      this.data.life      = d.life;
+    if (typeof this.data.life.streak !== 'number') this.data.life.streak = 0;
+    if (typeof this.data.life.bestStreak !== 'number') this.data.life.bestStreak = 0;
+    if (this.data.life.lastActiveDay === undefined) this.data.life.lastActiveDay = null;
+    if (!this.data.life.ringGoals) this.data.life.ringGoals = { focus: 3, body: 1, connect: 1 };
 
       /* ── State migration: safely add fields ── */
       const ds = this.data.dashboard;
@@ -446,7 +510,12 @@ window.STATE = {
   },
   toggleTask(id) {
     const t = (this.data.dashboard.tasks || []).find(t => t.id === id);
-    if (t) { t.done = !t.done; this.save(); }
+    if (t) {
+      t.done = !t.done;
+      t.completedAt = t.done ? new Date().toISOString() : null;
+      if (t.done) this._touchStreak();
+      this.save();
+    }
   },
   removeTask(id) {
     this.data.dashboard.tasks = (this.data.dashboard.tasks || []).filter(t => t.id !== id);
@@ -454,6 +523,191 @@ window.STATE = {
   },
   setDashboardHabits(habits) {
     this.data.dashboard.customHabits = habits;
+    this.save();
+  },
+
+  /* ──────────────────────────────────────────────────────────────
+     STREAK ENGINE + "TODAY" — the heart of the Life Rings.
+     Any meaningful logging action calls _touchStreak() so the day
+     streak grows. computeToday() rolls up today's progress.
+  ────────────────────────────────────────────────────────────── */
+
+  /** Mark today as "active" and roll the day-streak forward. */
+  _touchStreak() {
+    const life = this.data.life || (this.data.life = { streak: 0, lastActiveDay: null, bestStreak: 0, ringGoals: { focus: 3, body: 1, connect: 1 } });
+    const today = _dayKey();
+    if (life.lastActiveDay === today) return;          // already counted today
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    life.streak = (life.lastActiveDay === _dayKey(y)) ? (life.streak || 0) + 1 : 1;
+    life.lastActiveDay = today;
+    if (life.streak > (life.bestStreak || 0)) life.bestStreak = life.streak;
+  },
+
+  /** Roll up today's cross-life progress for the Life Rings. Pure read. */
+  computeToday() {
+    const today = _dayKey();
+    const d = this.data;
+    const isToday = (iso) => iso && _dayKey(new Date(iso)) === today;
+    const goals = d.life?.ringGoals || { focus: 3, body: 1, connect: 1 };
+
+    /* FOCUS — tasks knocked out today + journaling */
+    const tasksDoneToday = (d.dashboard?.tasks || []).filter(t => t.done && isToday(t.completedAt)).length;
+    const journaledToday = (d.journal?.entries || []).some(e => e.day === today);
+    const focusVal = tasksDoneToday + (journaledToday ? 1 : 0);
+
+    /* BODY — workout / body metric / health habit today */
+    const workedOutToday = (d.workout?.log || []).some(l => isToday(l.date))
+                        || (d.workout?.logbook || []).some(l => isToday(l.date));
+    const bodyMetricToday = ['weight', 'bodyfat'].some(k => (d.metrics?.[k] || []).some(p => p.day === today));
+    const bodyHabitTicks = (d.habits?.items || []).filter(h => h.ring === 'body' && h.log?.[today]).length;
+    const bodyVal = (workedOutToday ? 1 : 0) + (bodyMetricToday ? 1 : 0) + bodyHabitTicks;
+
+    /* CONNECT — reached out to people today */
+    let connectVal = 0;
+    if (isToday(d.relationship?.updates?.[0]?.date)) connectVal++;
+    (d.family?.members || []).forEach(m => { if (isToday(m.updates?.[0]?.date)) connectVal++; });
+    (d.friends?.members || []).forEach(m => { if (isToday(m.updates?.[0]?.date)) connectVal++; });
+    connectVal += (d.habits?.items || []).filter(h => h.ring === 'connect' && h.log?.[today]).length;
+
+    const ring = (val, goal) => ({ value: val, goal, frac: Math.min(1, goal > 0 ? val / goal : 0) });
+    const focus   = ring(focusVal,   goals.focus   || 3);
+    const body    = ring(bodyVal,    goals.body    || 1);
+    const connect = ring(connectVal, goals.connect || 1);
+    const overall = (focus.frac + body.frac + connect.frac) / 3;
+
+    const moodEntry = (d.journal?.entries || []).find(e => e.day === today && e.mood);
+    return {
+      day: today,
+      focus, body, connect, overall,
+      journaledToday,
+      moodToday: moodEntry?.mood || null,
+      streak: d.life?.streak || 0,
+      bestStreak: d.life?.bestStreak || 0,
+    };
+  },
+
+  /* ── Journal mutators ── */
+
+  addJournalEntry(fields) {
+    const j = this.data.journal || (this.data.journal = { entries: [] });
+    const now = new Date();
+    const entry = {
+      id: 'jr_' + Date.now(),
+      date: now.toISOString(),
+      day: _dayKey(now),
+      mood: fields?.mood != null ? Number(fields.mood) : null,
+      text: fields?.text || '',
+      tags: Array.isArray(fields?.tags) ? fields.tags : [],
+    };
+    j.entries.unshift(entry);
+    if (j.entries.length > 500) j.entries.length = 500;
+    if (entry.mood) this._pushMetric('mood', entry.mood, entry.day);
+    this._touchStreak();
+    this.save();
+    return entry.id;
+  },
+
+  /** Set today's mood (creates a mood-only entry if none today). */
+  setTodayMood(value) {
+    value = Number(value);
+    const j = this.data.journal || (this.data.journal = { entries: [] });
+    const today = _dayKey();
+    let entry = j.entries.find(e => e.day === today);
+    if (entry) { entry.mood = value; }
+    else {
+      entry = { id: 'jr_' + Date.now(), date: new Date().toISOString(), day: today, mood: value, text: '', tags: [] };
+      j.entries.unshift(entry);
+    }
+    this._pushMetric('mood', value, today);
+    this._touchStreak();
+    this.save();
+  },
+
+  removeJournalEntry(id) {
+    const j = this.data.journal;
+    if (!j) return;
+    j.entries = (j.entries || []).filter(e => e.id !== id);
+    this.save();
+  },
+
+  /* ── Habit mutators ── */
+
+  addHabit(name, icon, color, ring) {
+    const h = this.data.habits || (this.data.habits = { items: [] });
+    const id = 'hb_' + Date.now();
+    h.items.push({
+      id,
+      name: name || 'New habit',
+      icon: icon || '✅',
+      color: color || '#4fc3f7',
+      ring: ring || 'focus',          // which Life Ring this feeds: focus | body | connect
+      createdAt: new Date().toISOString(),
+      log: {},
+    });
+    this.save();
+    return id;
+  },
+
+  renameHabit(id, fields) {
+    const it = (this.data.habits?.items || []).find(h => h.id === id);
+    if (it) { Object.assign(it, fields); this.save(); }
+  },
+
+  removeHabit(id) {
+    const h = this.data.habits;
+    if (!h) return;
+    h.items = (h.items || []).filter(it => it.id !== id);
+    this.save();
+  },
+
+  /** Toggle (or set) a habit's completion for a given day. */
+  tickHabit(id, day, on) {
+    const it = (this.data.habits?.items || []).find(h => h.id === id);
+    if (!it) return;
+    if (!it.log) it.log = {};
+    const key = day || _dayKey();
+    const next = (on === undefined) ? !it.log[key] : !!on;
+    if (next) { it.log[key] = true; this._touchStreak(); }
+    else delete it.log[key];
+    this.save();
+    return next;
+  },
+
+  /** Current consecutive-day streak for a single habit. */
+  habitStreak(id) {
+    const it = (this.data.habits?.items || []).find(h => h.id === id);
+    if (!it || !it.log) return 0;
+    let streak = 0;
+    const d = new Date();
+    // Allow today to be unticked without breaking the streak shown.
+    if (!it.log[_dayKey(d)]) d.setDate(d.getDate() - 1);
+    while (it.log[_dayKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
+  },
+
+  /* ── Metric mutators (time-series) ── */
+
+  _pushMetric(key, value, day) {
+    const m = this.data.metrics || (this.data.metrics = { weight: [], bodyfat: [], networth: [], mood: [] });
+    if (!Array.isArray(m[key])) m[key] = [];
+    day = day || _dayKey();
+    const v = Number(value);
+    if (!isFinite(v)) return;
+    const existing = m[key].find(p => p.day === day);
+    if (existing) { existing.value = v; existing.at = new Date().toISOString(); }
+    else m[key].push({ day, value: v, at: new Date().toISOString() });
+    m[key].sort((a, b) => a.day.localeCompare(b.day));
+    if (m[key].length > 400) m[key].splice(0, m[key].length - 400);
+  },
+
+  logMetric(key, value, day) {
+    const allowed = ['weight', 'bodyfat', 'networth', 'mood'];
+    if (!allowed.includes(key)) return;
+    this._pushMetric(key, value, day);
+    // Keep body goals in sync so the Workout page reflects the latest weight/BF.
+    if (key === 'weight')  this.saveBodyGoals({ currentWeight: String(value) });
+    if (key === 'bodyfat') this.saveBodyGoals({ currentBF: String(value) });
+    this._touchStreak();
     this.save();
   },
 

@@ -98,6 +98,10 @@ function navigateTo(page) {
     PAGE_REGISTRY[page]();
     INITIALISED[page] = true;
   }
+
+  /* Broadcast so non-router features (FAB visibility, etc.) can react.
+     replaceState does NOT fire hashchange, so we signal explicitly. */
+  window.dispatchEvent(new CustomEvent('onyxra:navigate', { detail: { page } }));
 }
 
 /* Wire up nav items */
@@ -622,3 +626,652 @@ window.setupSwipeDismiss = function(modalEl, closeFn) {
     }
   });
 };
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PWA POLISH LAYER
+   Native-app feel: haptics, toasts, install prompt, pull-to-refresh.
+   All exposed on window so any page module can use them.
+════════════════════════════════════════════════════════════════ */
+(function onyxraPWA() {
+
+  /* ── Haptics — light, meaningful vibration on supported devices ── */
+  const HAPTIC = { tap: 8, soft: 14, success: [0, 22, 34, 22], warn: [0, 40, 30, 55], error: [0, 60, 40, 60], pop: 18 };
+  window.haptic = function (kind) {
+    try {
+      if (!('vibrate' in navigator)) return;
+      navigator.vibrate(HAPTIC[kind] != null ? HAPTIC[kind] : (kind || 8));
+    } catch (e) { /* no-op */ }
+  };
+
+  /* ── Toasts — transient confirmations, top-center, swipe/tap to dismiss ── */
+  function toastHost() {
+    let host = document.getElementById('onyxToasts');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'onyxToasts';
+      host.className = 'onyx-toasts';
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+  window.toast = function (message, opts) {
+    opts = opts || {};
+    const type = opts.type || 'default';
+    const icon = ('icon' in opts) ? opts.icon
+      : ({ success: '✓', error: '✕', info: 'ⓘ', ai: '✦', warn: '!' }[type] || '');
+    const el = document.createElement('div');
+    el.className = 'onyx-toast onyx-toast-' + type;
+    if (icon) {
+      const ic = document.createElement('span');
+      ic.className = 'onyx-toast-icon';
+      ic.textContent = icon;
+      el.appendChild(ic);
+    }
+    const msg = document.createElement('span');
+    msg.className = 'onyx-toast-msg';
+    msg.textContent = message;
+    el.appendChild(msg);
+    if (opts.action && typeof opts.onAction === 'function') {
+      const b = document.createElement('button');
+      b.className = 'onyx-toast-action';
+      b.textContent = opts.action;
+      b.addEventListener('click', (e) => { e.stopPropagation(); try { opts.onAction(); } catch (er) {} dismiss(); });
+      el.appendChild(b);
+    }
+    toastHost().appendChild(el);
+    requestAnimationFrame(() => el.classList.add('in'));
+    let timer = setTimeout(dismiss, opts.duration || 3200);
+    function dismiss() {
+      clearTimeout(timer);
+      el.classList.remove('in');
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 280);
+    }
+    el.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON') dismiss(); });
+    return { dismiss };
+  };
+
+  /* ── Install to home screen ── */
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    window.__canInstall = true;
+    document.body.classList.add('can-install');
+    maybeShowInstallBanner();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    window.__canInstall = false;
+    document.body.classList.remove('can-install');
+    try { localStorage.setItem('onyxra_installed', '1'); } catch (e) {}
+    if (window.toast) window.toast('Onyxra installed — welcome home', { type: 'success' });
+    const b = document.getElementById('onyxInstallBanner');
+    if (b) b.remove();
+  });
+
+  window.promptInstall = async function () {
+    if (!deferredPrompt) {
+      const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (window.toast) {
+        window.toast(isiOS ? 'Tap the Share icon, then “Add to Home Screen”'
+                           : 'Use your browser menu → Install / Add to Home Screen',
+                     { type: 'info', duration: 5200 });
+      }
+      return;
+    }
+    deferredPrompt.prompt();
+    let outcome = 'dismissed';
+    try { outcome = (await deferredPrompt.userChoice).outcome; } catch (e) {}
+    deferredPrompt = null;
+    document.body.classList.remove('can-install');
+  };
+
+  function maybeShowInstallBanner() {
+    let dismissed = false, installed = false;
+    try {
+      dismissed = localStorage.getItem('onyxra_install_dismissed') === '1';
+      installed = localStorage.getItem('onyxra_installed') === '1';
+    } catch (e) {}
+    if (dismissed || installed) return;
+    if (document.getElementById('onyxInstallBanner')) return;
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                    || window.navigator.standalone === true;
+    if (standalone) return;
+
+    const b = document.createElement('div');
+    b.id = 'onyxInstallBanner';
+    b.className = 'onyx-install-banner';
+    b.innerHTML = `
+      <div class="onyx-install-logo">⬡</div>
+      <div class="onyx-install-copy">
+        <div class="onyx-install-title">Install Onyxra</div>
+        <div class="onyx-install-sub">Full-screen, offline-ready, on your home screen</div>
+      </div>
+      <button class="onyx-install-go" type="button">Install</button>
+      <button class="onyx-install-x" type="button" aria-label="Dismiss">✕</button>`;
+    document.body.appendChild(b);
+    requestAnimationFrame(() => b.classList.add('in'));
+    b.querySelector('.onyx-install-go').addEventListener('click', () => { window.haptic('tap'); window.promptInstall(); });
+    b.querySelector('.onyx-install-x').addEventListener('click', () => {
+      try { localStorage.setItem('onyxra_install_dismissed', '1'); } catch (e) {}
+      b.classList.remove('in');
+      setTimeout(() => b.remove(), 300);
+    });
+  }
+
+  /* ── Refresh the current page module (re-runs its init) ── */
+  window.refreshCurrentPage = function () {
+    try {
+      const page = (typeof getCurrentPage === 'function') ? getCurrentPage() : 'dashboard';
+      if (typeof INITIALISED !== 'undefined') INITIALISED[page] = false;
+      navigateTo(page);
+      window.dispatchEvent(new CustomEvent('onyxra:refresh', { detail: { page } }));
+    } catch (e) {
+      location.reload();
+    }
+  };
+
+  /* ── Pull-to-refresh (mobile) ── */
+  (function pullToRefresh() {
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    const THRESH = 72;
+    let startY = 0, pulling = false, dist = 0, indicator = null;
+
+    function ensureIndicator() {
+      if (indicator) return indicator;
+      indicator = document.createElement('div');
+      indicator.className = 'onyx-ptr';
+      indicator.innerHTML = '<div class="onyx-ptr-ring"></div>';
+      document.body.appendChild(indicator);
+      return indicator;
+    }
+    function scrolledTop() {
+      const sc = document.scrollingElement || document.documentElement;
+      return Math.max(main.scrollTop || 0, sc.scrollTop || 0, window.scrollY || 0) <= 4;
+    }
+
+    main.addEventListener('touchstart', (e) => {
+      if (window.innerWidth > 900) return;
+      if (e.touches.length !== 1) return;
+      if (!scrolledTop()) return;
+      // Don't hijack pulls that begin inside a scrollable inner panel / modal.
+      if (e.target.closest('.modal, .ex-modal, .notif-panel, .profile-drawer, .onyx-sheet, .ai-thread')) return;
+      startY = e.touches[0].clientY; pulling = true; dist = 0;
+    }, { passive: true });
+
+    main.addEventListener('touchmove', (e) => {
+      if (!pulling) return;
+      dist = e.touches[0].clientY - startY;
+      if (dist <= 0) { reset(); return; }
+      const ind = ensureIndicator();
+      const pull = Math.min(dist, 130);
+      ind.classList.add('show');
+      ind.style.transform = `translateX(-50%) translateY(${Math.min(pull, THRESH + 24)}px)`;
+      ind.style.opacity = String(Math.min(1, pull / THRESH));
+      const ring = ind.querySelector('.onyx-ptr-ring');
+      if (ring) ring.style.transform = `rotate(${pull * 3}deg)`;
+      ind.classList.toggle('ready', pull >= THRESH);
+    }, { passive: true });
+
+    main.addEventListener('touchend', () => {
+      if (!pulling) return;
+      pulling = false;
+      if (dist >= THRESH && indicator) {
+        indicator.classList.add('refreshing');
+        indicator.style.transform = `translateX(-50%) translateY(${THRESH}px)`;
+        window.haptic('success');
+        setTimeout(() => {
+          window.refreshCurrentPage();
+          reset();
+          if (window.toast) window.toast('Up to date', { type: 'success', duration: 1300 });
+        }, 420);
+      } else {
+        reset();
+      }
+      dist = 0;
+    }, { passive: true });
+
+    main.addEventListener('touchcancel', () => { pulling = false; reset(); }, { passive: true });
+
+    function reset() {
+      pulling = false;
+      if (!indicator) return;
+      indicator.classList.remove('show', 'ready', 'refreshing');
+      indicator.style.opacity = '0';
+    }
+  })();
+
+  // If the install event already fired before this code ran, surface the banner.
+  if (window.__canInstall) maybeShowInstallBanner();
+})();
+
+
+/* ══════════════════════════════════════════════════════════════════
+   AGENTIC ENGINE
+   The AI doesn't just talk — it acts. The model may append a fenced
+   ```onyxra { "actions": [...] }``` block to its reply. We parse it,
+   apply each action through STATE mutators, and confirm with chips.
+   Shared by the dashboard orb chat AND Quick Capture.
+════════════════════════════════════════════════════════════════ */
+
+/** Build the full life snapshot sent to the AI for grounding. */
+window.buildOnyxraSnapshot = function buildOnyxraSnapshot() {
+  const S = window.STATE;
+  if (!S || !S.data) return {};
+  const d = S.data;
+  const now = new Date();
+  const z = new Date();
+  const todayStr = z.getFullYear() + '-' + String(z.getMonth() + 1).padStart(2, '0') + '-' + String(z.getDate()).padStart(2, '0');
+  const today = (typeof S.computeToday === 'function') ? S.computeToday() : null;
+  const ns = d.nutrition || {}, ws = d.workout || {}, ds = d.dashboard || {};
+  const bs = d.business || {}, ps = d.passions || {};
+  const fs = d.family || { members: [] }, frs = d.friends || { members: [] }, rls = d.relationship || {};
+  const last = (arr) => (arr && arr.length) ? arr[arr.length - 1].value : null;
+
+  return {
+    time: now.toLocaleString(),
+    todayDate: todayStr,
+    profile: { name: S.profile?.display_name || (S.user?.email || '').split('@')[0] || 'user' },
+    today: today ? {
+      streak: today.streak,
+      mood: today.moodToday,
+      ringsPct: { focus: Math.round(today.focus.frac * 100), body: Math.round(today.body.frac * 100), connect: Math.round(today.connect.frac * 100) },
+      journaledToday: today.journaledToday,
+    } : null,
+    dashboard: {
+      weeklyTopPriority: ds.weeklyTopPriority,
+      todayPriorities: ds.todayPriorities,
+      tasks: (ds.tasks || []).map(t => ({ text: t.text, done: t.done })),
+    },
+    habits: (d.habits?.items || []).map(h => ({
+      name: h.name, ring: h.ring,
+      doneToday: !!(h.log && h.log[todayStr]),
+      streak: (typeof S.habitStreak === 'function') ? S.habitStreak(h.id) : 0,
+    })),
+    metrics: { weight: last(d.metrics?.weight), bodyfat: last(d.metrics?.bodyfat), networth: last(d.metrics?.networth) },
+    workout: { todayDay: S.currentWorkoutDay, currentPhase: ws.currentPhase, weekNumber: ws.weekNumber, recentLogCount: (ws.log || []).length },
+    nutrition: { currentPhase: ns.currentPhase, macroTargets: window.computeMacros?.(ns.calcWeight, ns.calcGoal, ns.calcActivity) },
+    business: { ventureCount: (bs.ventures || []).length, activeVenture: bs.ventures?.find(v => v.id === bs.activeVentureId)?.name || null },
+    interests: { count: (ps.passions || []).length, active: ps.passions?.find(p => p.id === ps.activePassionId)?.name || null },
+    family: { members: (fs.members || []).map(m => ({ name: m.name, role: m.role, latestUpdate: m.updates?.[0]?.text || null })) },
+    friends: { members: (frs.members || []).map(m => ({ name: m.name, role: m.role, latestUpdate: m.updates?.[0]?.text || null })) },
+    relationship: { name: rls.name || null, latestUpdate: rls.updates?.[0]?.text || null, openGiftIdeas: (rls.giftIdeas || []).filter(g => !g.given).length, upcomingDates: (rls.dates || []).slice(0, 3) },
+    recentJournal: (d.journal?.entries || []).slice(0, 3).map(e => ({ day: e.day, mood: e.mood, text: (e.text || '').slice(0, 160) })),
+  };
+};
+
+/** Extract { clean, actions } from a model reply containing an onyxra block. */
+window.parseOnyxraActions = function parseOnyxraActions(text) {
+  if (!text) return { clean: text || '', actions: [] };
+  let actions = [];
+  let clean = text;
+  const fence = /```(?:onyxra|json)?\s*(\{[\s\S]*?"actions"[\s\S]*?\})\s*```/i;
+  let m = text.match(fence);
+  if (!m) {
+    const bare = /(\{[\s\S]*?"actions"\s*:\s*\[[\s\S]*?\][\s\S]*?\})/;
+    m = text.match(bare);
+  }
+  if (m) {
+    try {
+      const obj = JSON.parse(m[1]);
+      if (Array.isArray(obj.actions)) actions = obj.actions;
+      clean = text.replace(m[0], '').trim();
+    } catch (e) { /* malformed — leave reply intact */ }
+  }
+  clean = clean.replace(/```(?:onyxra|json)?\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
+  return { clean, actions };
+};
+
+function _onyxMapPage(p) {
+  if (!p) return null;
+  p = String(p).toLowerCase().trim();
+  const all = (typeof VALID_PAGES !== 'undefined') ? VALID_PAGES : ['dashboard'];
+  if (all.includes(p)) return p;
+  const map = {
+    health: 'workout', body: 'workout', gym: 'workout', fitness: 'workout', exercise: 'workout',
+    food: 'nutrition', diet: 'nutrition', meals: 'nutrition', macros: 'nutrition',
+    money: 'wealth', investing: 'wealth', invest: 'wealth', finance: 'wealth', investments: 'wealth',
+    people: 'relationship', partner: 'relationship', love: 'relationship',
+    interests: 'passions', hobbies: 'passions', interest: 'passions',
+    home: 'dashboard', ai: 'dashboard', chat: 'dashboard',
+  };
+  return (map[p] && all.includes(map[p])) ? map[p] : null;
+}
+
+/** Apply parsed actions to STATE. Returns chips [{icon,label}] for confirmation. */
+window.applyOnyxraActions = function applyOnyxraActions(actions) {
+  if (!Array.isArray(actions) || !actions.length || !window.STATE) return [];
+  const S = window.STATE;
+  const out = [];
+  const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
+  const findHabit = (name) => (S.data.habits?.items || []).find(h => norm(h.name) === norm(name))
+                          || (S.data.habits?.items || []).find(h => norm(h.name).includes(norm(name)) && norm(name));
+  const findPerson = (list, name) => (list || []).find(m => norm(m.name) === norm(name))
+                                 || (list || []).find(m => norm(name) && norm(m.name).includes(norm(name)));
+  let nav = null;
+
+  for (const a of actions) {
+    try {
+      const type = a.type || a.action;
+      switch (type) {
+        case 'add_task':
+          if (a.text) { S.addTask(a.text); out.push({ icon: '✅', label: a.text }); }
+          break;
+        case 'complete_task': {
+          const t = (S.data.dashboard.tasks || []).find(t => !t.done && norm(t.text).includes(norm(a.text)));
+          if (t) { S.toggleTask(t.id); out.push({ icon: '✔', label: 'Done: ' + t.text }); }
+          break;
+        }
+        case 'set_priority':
+          if (a.text) { S.setWeeklyPriority(a.text); out.push({ icon: '⭐', label: 'Priority: ' + a.text }); }
+          break;
+        case 'add_today_priority':
+          if (a.text) {
+            const arr = (S.data.dashboard.todayPriorities || ['', '', '']).slice(0, 3);
+            const i = arr.findIndex(x => !x);
+            if (i >= 0) arr[i] = a.text; else arr[2] = a.text;
+            S.setTodayPriorities(arr[0], arr[1], arr[2]);
+            out.push({ icon: '🎯', label: 'Today: ' + a.text });
+          }
+          break;
+        case 'log_weight':
+          if (a.value != null) { S.logMetric('weight', a.value); out.push({ icon: '⚖️', label: 'Weight ' + a.value }); }
+          break;
+        case 'log_bodyfat':
+          if (a.value != null) { S.logMetric('bodyfat', a.value); out.push({ icon: '📉', label: 'Body fat ' + a.value + '%' }); }
+          break;
+        case 'log_networth':
+          if (a.value != null) { S.logMetric('networth', a.value); out.push({ icon: '💰', label: 'Net worth logged' }); }
+          break;
+        case 'add_journal':
+          if (a.text || a.mood != null) { S.addJournalEntry({ text: a.text || '', mood: a.mood }); out.push({ icon: '📓', label: 'Journal saved' }); }
+          break;
+        case 'set_mood':
+          if (a.value != null) { S.setTodayMood(a.value); out.push({ icon: '🧠', label: 'Mood logged' }); }
+          break;
+        case 'add_habit':
+          if (a.name) { S.addHabit(a.name, a.icon, a.color, a.ring); out.push({ icon: '🔁', label: 'Habit: ' + a.name }); }
+          break;
+        case 'tick_habit': {
+          const h = findHabit(a.name);
+          if (h) { S.tickHabit(h.id, null, true); out.push({ icon: '🔥', label: h.name + ' ✓' }); }
+          break;
+        }
+        case 'log_workout':
+          S.addLogbookEntry({ title: a.title || 'Workout', exercises: [], notes: a.notes || '' });
+          out.push({ icon: '🏋️', label: 'Workout logged' });
+          break;
+        case 'add_gift_idea':
+          if (a.text) { S.addGiftIdea(a.text); out.push({ icon: '🎁', label: 'Gift idea: ' + a.text }); }
+          break;
+        case 'add_relationship_update':
+          if (a.text) { S.addRelationshipUpdate(a.text); out.push({ icon: '💕', label: 'Relationship note' }); }
+          break;
+        case 'add_family_update': {
+          const m = findPerson(S.data.family?.members, a.name);
+          if (m && a.text) { S.addFamilyUpdate(m.id, a.text); out.push({ icon: '❤︎', label: m.name + ': noted' }); }
+          break;
+        }
+        case 'add_friend_update': {
+          const m = findPerson(S.data.friends?.members, a.name);
+          if (m && a.text) { S.addFriendUpdate(m.id, a.text); out.push({ icon: '🧑', label: m.name + ': noted' }); }
+          break;
+        }
+        case 'navigate': {
+          const pg = _onyxMapPage(a.page);
+          if (pg) { nav = pg; out.push({ icon: '➡', label: 'Open ' + (PAGE_NAMES[pg] || pg) }); }
+          break;
+        }
+        default: break;
+      }
+    } catch (e) { /* skip a single bad action, keep the rest */ }
+  }
+
+  if (out.length) {
+    if (window.haptic) window.haptic('success');
+    window.dispatchEvent(new CustomEvent('onyxra:state-changed', { detail: { actions } }));
+  }
+  if (nav && typeof navigateTo === 'function') setTimeout(() => navigateTo(nav), 350);
+  return out;
+};
+
+
+/* ══════════════════════════════════════════════════════════════════
+   QUICK CAPTURE — the everywhere command palette
+   FAB (mobile) + ⌘K / Ctrl+K (desktop) → a native bottom sheet to
+   capture anything by text or voice. AI-routed via the agentic engine,
+   plus instant offline local quick-actions.
+════════════════════════════════════════════════════════════════ */
+(function quickCapture() {
+  let sheetEl = null, inputEl = null, busy = false, recog = null, listening = false;
+
+  function ensureUI() {
+    if (sheetEl) return;
+
+    // Floating action button
+    const fab = document.createElement('button');
+    fab.id = 'onyxFab';
+    fab.className = 'onyx-fab';
+    fab.type = 'button';
+    fab.setAttribute('aria-label', 'Quick capture');
+    fab.innerHTML = '<span class="onyx-fab-plus">+</span>';
+    fab.addEventListener('click', () => { window.haptic('tap'); openCapture(); });
+    document.body.appendChild(fab);
+
+    // Bottom sheet
+    sheetEl = document.createElement('div');
+    sheetEl.id = 'onyxSheet';
+    sheetEl.className = 'onyx-sheet-overlay';
+    sheetEl.innerHTML = `
+      <div class="onyx-sheet" role="dialog" aria-label="Quick capture">
+        <div class="onyx-sheet-handle"></div>
+        <div class="onyx-sheet-head">
+          <span class="onyx-sheet-spark">✦</span>
+          <span class="onyx-sheet-title">Capture anything</span>
+          <button class="onyx-sheet-x" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="onyx-sheet-inputwrap">
+          <textarea id="onyxCaptureInput" class="onyx-sheet-input" rows="2"
+            placeholder="Log a task, weight, mood, a note about someone… or just ask."></textarea>
+          <button id="onyxCaptureMic" class="onyx-sheet-mic" type="button" aria-label="Speak">🎤</button>
+        </div>
+        <div class="onyx-sheet-quick" id="onyxCaptureQuick">
+          <button class="onyx-qa" data-qa="task">✅ Task</button>
+          <button class="onyx-qa" data-qa="journal">📓 Journal</button>
+          <button class="onyx-qa" data-qa="weight">⚖️ Weight</button>
+          <button class="onyx-qa" data-qa="priority">⭐ Priority</button>
+          <button class="onyx-qa" data-qa="mood">🧠 Mood</button>
+        </div>
+        <div class="onyx-sheet-result" id="onyxCaptureResult"></div>
+        <button class="onyx-sheet-send" id="onyxCaptureSend" type="button">
+          <span class="onyx-sheet-send-spark">✦</span> Ask Onyxra
+        </button>
+        <div class="onyx-sheet-hint">Onyxra figures out what to do — or use a quick button above.</div>
+      </div>`;
+    document.body.appendChild(sheetEl);
+
+    inputEl = sheetEl.querySelector('#onyxCaptureInput');
+    sheetEl.querySelector('.onyx-sheet-x').addEventListener('click', closeCapture);
+    sheetEl.addEventListener('click', (e) => { if (e.target === sheetEl) closeCapture(); });
+    sheetEl.querySelector('#onyxCaptureSend').addEventListener('click', sendToAI);
+    sheetEl.querySelectorAll('.onyx-qa').forEach(b => b.addEventListener('click', () => localAction(b.dataset.qa)));
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendToAI(); }
+    });
+
+    // Mic (voice → input)
+    const micBtn = sheetEl.querySelector('#onyxCaptureMic');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { micBtn.style.display = 'none'; }
+    else {
+      micBtn.addEventListener('click', () => {
+        if (listening) { try { recog && recog.stop(); } catch (e) {} return; }
+        try {
+          recog = new SR(); recog.lang = 'en-US'; recog.interimResults = true; recog.continuous = false;
+          listening = true; micBtn.classList.add('listening'); window.haptic('tap');
+          recog.onresult = (e) => {
+            let txt = '';
+            for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+            inputEl.value = txt;
+            if (e.results[e.results.length - 1].isFinal) { listening = false; micBtn.classList.remove('listening'); }
+          };
+          recog.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
+          recog.onend = () => { listening = false; micBtn.classList.remove('listening'); };
+          recog.start();
+        } catch (e) { listening = false; micBtn.classList.remove('listening'); }
+      });
+    }
+  }
+
+  function openCapture(prefill) {
+    ensureUI();
+    document.body.classList.add('onyx-sheet-open');
+    sheetEl.classList.add('open');
+    const result = sheetEl.querySelector('#onyxCaptureResult');
+    if (result) { result.innerHTML = ''; result.classList.remove('show'); }
+    if (prefill) inputEl.value = prefill;
+    setTimeout(() => inputEl && inputEl.focus(), 120);
+  }
+  function closeCapture() {
+    if (!sheetEl) return;
+    sheetEl.classList.remove('open');
+    document.body.classList.remove('onyx-sheet-open');
+    try { recog && recog.stop(); } catch (e) {}
+  }
+
+  function showChips(chips, leadText) {
+    const result = sheetEl.querySelector('#onyxCaptureResult');
+    if (!result) return;
+    const lead = leadText ? `<div class="onyx-cap-lead">${escapeHtmlLocal(leadText)}</div>` : '';
+    const chipHtml = (chips || []).map(c => `<span class="onyx-cap-chip">${c.icon || '✓'} ${escapeHtmlLocal(c.label)}</span>`).join('');
+    result.innerHTML = lead + (chipHtml ? `<div class="onyx-cap-chips">${chipHtml}</div>` : '');
+    result.classList.add('show');
+  }
+
+  function escapeHtmlLocal(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  /* Instant, offline, no-AI quick actions */
+  function localAction(kind) {
+    const text = (inputEl.value || '').trim();
+    const S = window.STATE;
+    if (!S) return;
+    window.haptic('tap');
+    if (kind === 'weight') {
+      const num = parseFloat((text.match(/[\d.]+/) || [])[0]);
+      if (!isFinite(num)) { window.toast('Type your weight first (e.g. 182)', { type: 'warn' }); return; }
+      S.logMetric('weight', num); finishLocal([{ icon: '⚖️', label: 'Weight ' + num }]);
+    } else if (kind === 'task') {
+      if (!text) { window.toast('Type the task first', { type: 'warn' }); return; }
+      S.addTask(text); finishLocal([{ icon: '✅', label: text }]);
+    } else if (kind === 'journal') {
+      if (!text) { window.toast('Write something to journal', { type: 'warn' }); return; }
+      S.addJournalEntry({ text }); finishLocal([{ icon: '📓', label: 'Journal saved' }]);
+    } else if (kind === 'priority') {
+      if (!text) { window.toast('Type your priority first', { type: 'warn' }); return; }
+      S.setWeeklyPriority(text); finishLocal([{ icon: '⭐', label: text }]);
+    } else if (kind === 'mood') {
+      openMoodPicker();
+    }
+  }
+
+  function openMoodPicker() {
+    const result = sheetEl.querySelector('#onyxCaptureResult');
+    const MOODS = [[1, '😞'], [2, '😕'], [3, '😐'], [4, '🙂'], [5, '🤩']];
+    result.innerHTML = `<div class="onyx-cap-lead">How are you feeling?</div>
+      <div class="onyx-mood-row">${MOODS.map(m => `<button class="onyx-mood-btn" data-mood="${m[0]}">${m[1]}</button>`).join('')}</div>`;
+    result.classList.add('show');
+    result.querySelectorAll('.onyx-mood-btn').forEach(b => b.addEventListener('click', () => {
+      window.STATE.setTodayMood(Number(b.dataset.mood));
+      window.haptic('success');
+      finishLocal([{ icon: '🧠', label: 'Mood logged' }]);
+    }));
+  }
+
+  function finishLocal(chips) {
+    window.dispatchEvent(new CustomEvent('onyxra:state-changed', { detail: { local: true } }));
+    showChips(chips, 'Done.');
+    inputEl.value = '';
+    window.toast((chips[0] && chips[0].label) ? chips[0].label : 'Saved', { type: 'success', duration: 1600 });
+    setTimeout(closeCapture, 700);
+  }
+
+  /* Route through the AI agentic endpoint */
+  async function sendToAI() {
+    const text = (inputEl.value || '').trim();
+    if (!text || busy) return;
+    busy = true;
+    const sendBtn = sheetEl.querySelector('#onyxCaptureSend');
+    const result = sheetEl.querySelector('#onyxCaptureResult');
+    sendBtn.classList.add('loading');
+    sendBtn.disabled = true;
+    result.classList.add('show');
+    result.innerHTML = '<div class="onyx-cap-thinking"><span></span><span></span><span></span></div>';
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: text }],
+          snapshot: window.buildOnyxraSnapshot ? window.buildOnyxraSnapshot() : {},
+          capture: true,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        result.innerHTML = `<div class="onyx-cap-lead onyx-cap-err">⚠️ ${escapeHtmlLocal(err.error || 'AI unavailable.')}</div>`;
+      } else {
+        const data = await res.json();
+        const parsed = window.parseOnyxraActions(data.reply || '');
+        const chips = window.applyOnyxraActions(parsed.actions);
+        if (chips.length) {
+          showChips(chips, parsed.clean || 'Done.');
+          inputEl.value = '';
+          window.toast(chips.length + (chips.length === 1 ? ' thing captured' : ' things captured'), { type: 'success', duration: 1800 });
+          setTimeout(closeCapture, 1400);
+        } else {
+          // No actions — just an answer. Show it.
+          showChips([], parsed.clean || data.reply || 'Done.');
+        }
+      }
+    } catch (e) {
+      result.innerHTML = `<div class="onyx-cap-lead onyx-cap-err">⚠️ ${escapeHtmlLocal(e.message)}</div>`;
+    } finally {
+      busy = false;
+      sendBtn.classList.remove('loading');
+      sendBtn.disabled = false;
+    }
+  }
+
+  // Keyboard: ⌘K / Ctrl+K toggles capture anywhere
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      if (sheetEl && sheetEl.classList.contains('open')) closeCapture();
+      else openCapture();
+    }
+    if (e.key === 'Escape' && sheetEl && sheetEl.classList.contains('open')) closeCapture();
+  });
+
+  // Hide the FAB on the dashboard (the orb already is the capture surface there).
+  function updateFabVisibility() {
+    const fab = document.getElementById('onyxFab');
+    if (!fab) return;
+    const page = (typeof getCurrentPage === 'function') ? getCurrentPage() : 'dashboard';
+    fab.classList.toggle('hidden', page === 'dashboard');
+  }
+  window.addEventListener('hashchange', updateFabVisibility);
+  window.addEventListener('onyxra:navigate', updateFabVisibility);
+
+  // Expose + initial paint
+  window.openCapture = openCapture;
+  ensureUI();
+  updateFabVisibility();
+})();

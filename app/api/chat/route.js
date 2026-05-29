@@ -22,8 +22,51 @@ export const runtime = 'edge';
 // (no code redeploy needed), or per-request via the `model` field in the body.
 const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || 'openai/gpt-4o-mini';
 
-function buildSystemPrompt(profile, snapshot) {
+const ACTIONS_PROTOCOL = `
+═══════════════════════════════════════════
+ACTING ON THEIR LIFE (you can DO things, not just talk)
+═══════════════════════════════════════════
+You can change their data. When the user asks to record, add, log, update,
+complete, or set something, do BOTH:
+  1. Reply in one short, natural sentence confirming it — like a friend would.
+     NEVER mention JSON, "actions", or that you're a tool.
+  2. Append EXACTLY ONE fenced block at the very end of your message:
+
+\`\`\`onyxra
+{"actions":[ {"type":"...", ...} ]}
+\`\`\`
+
+Only emit the block when something should actually change. Pure questions get
+NO block. Supported actions (use only these types and fields):
+
+  {"type":"add_task","text":"Call the dentist"}
+  {"type":"complete_task","text":"dentist"}            // matches an open task
+  {"type":"set_priority","text":"Ship the MVP"}        // the week's #1 focus
+  {"type":"add_today_priority","text":"Gym at 5pm"}
+  {"type":"log_weight","value":182}                    // lbs
+  {"type":"log_bodyfat","value":14.5}                  // percent
+  {"type":"log_networth","value":52000}
+  {"type":"add_journal","text":"Felt great after training","mood":4}  // mood 1-5 optional
+  {"type":"set_mood","value":4}                        // 1 awful … 5 amazing
+  {"type":"add_habit","name":"Read 20 min","ring":"focus","icon":"📚"}  // ring: focus|body|connect
+  {"type":"tick_habit","name":"Read"}                  // marks it done today
+  {"type":"log_workout","title":"Push day","notes":"Bench felt strong"}
+  {"type":"add_gift_idea","text":"Concert tickets"}
+  {"type":"add_relationship_update","text":"Planned a weekend trip"}
+  {"type":"add_family_update","name":"Mom","text":"Recovering well after surgery"}
+  {"type":"add_friend_update","name":"Jake","text":"Got the new job"}
+  {"type":"navigate","page":"workout"}                 // dashboard|workout|nutrition|wealth|business|passions|relationship|family|friends|settings
+
+Numbers must be raw (182 not "182 lbs"). Put MULTIPLE actions in the one array
+when the user says several things at once. Match names/tasks to what already
+exists in the snapshot. If you can't map a request to an action, just answer.`;
+
+function buildSystemPrompt(profile, snapshot, capture) {
   const name = profile?.display_name || snapshot?.profile?.name || 'there';
+  const captureNote = capture ? `
+
+CAPTURE MODE: this came from the quick-capture bar. Be terse — a single short
+confirmation sentence, then the action block. Default to taking an action.` : '';
   return `You are Onyxra — ${name}'s personal AI life assistant.
 
 Their Life OS is organized into five main categories:
@@ -49,7 +92,8 @@ ${JSON.stringify(snapshot, null, 2)}
 
 When the user asks for "today's workout", "what should I eat", "what's next", etc., pull from the snapshot above.
 When you spot priorities/tasks that are stale or unclear, suggest improvements.
-Keep responses concise — usually under 5 sentences unless they ask for detail.`;
+Keep responses concise — usually under 5 sentences unless they ask for detail.
+${ACTIONS_PROTOCOL}${captureNote}`;
 }
 
 export async function POST(request) {
@@ -64,7 +108,7 @@ export async function POST(request) {
       );
     }
 
-    const { messages = [], snapshot = {}, model } = await request.json();
+    const { messages = [], snapshot = {}, model, capture = false } = await request.json();
 
     // Single-user mode: auth is OPTIONAL. If a Supabase session happens to
     // exist we enrich the prompt with the stored profile, but we never block
@@ -81,7 +125,7 @@ export async function POST(request) {
       // No auth / no Supabase — fine. Chat still works from the snapshot.
     }
 
-    const systemPrompt = buildSystemPrompt(profile, snapshot);
+    const systemPrompt = buildSystemPrompt(profile, snapshot, capture);
 
     const upstream = await fetch(`${gatewayUrl}/chat/completions`, {
       method: 'POST',
