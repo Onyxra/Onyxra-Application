@@ -7,7 +7,7 @@
  * On install: purges ALL old caches (kills old Koltyn OS cache too).
  */
 
-const CACHE_NAME = 'onyxra-static-v2';
+const CACHE_NAME = 'onyxra-static-v3';
 const FONT_CACHE = 'onyxra-fonts-v1';
 
 const STATIC_ASSETS = [
@@ -60,6 +60,23 @@ self.addEventListener('fetch', event => {
       url.pathname.startsWith('/api/') ||
       url.pathname.startsWith('/_next/')) {
     event.respondWith(fetch(request).catch(() => new Response('Offline', { status: 503 })));
+    return;
+  }
+
+  /* App scripts (/js/...) — network-first so new deploys load immediately.
+     These are our own application code and change on every release; serving
+     them cache-first (the old behavior) pinned stale JS in users' browsers.
+     Fall back to the cached copy only when the network is unavailable. */
+  if (url.origin === self.location.origin && url.pathname.startsWith('/js/')) {
+    event.respondWith(
+      fetch(request).then(response => {
+        if (response.ok && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request))
+    );
     return;
   }
 

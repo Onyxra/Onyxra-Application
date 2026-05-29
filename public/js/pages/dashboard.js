@@ -29,6 +29,9 @@ window.registerPage('dashboard', function initDashboard() {
   let orb = null;        // active orb instance
   let messages = [];     // {role, content}
   let speakTimer = null; // resets status line after a reply
+  let voiceOn = (typeof localStorage !== 'undefined' && localStorage.getItem('onyxra_voice') === 'off') ? false : true;
+  let recog = null;      // SpeechRecognition instance (voice input)
+  let listening = false; // mic actively listening
 
   /* ─────────────────────────────────────────────────────────────
      SNAPSHOT — sent to AI as context
@@ -182,9 +185,10 @@ window.registerPage('dashboard', function initDashboard() {
       // mood → target energy
       if (mood === 'speaking' && now > speakUntil) mood = 'idle';
       let base;
-      if (mood === 'idle')          base = 0.16 + Math.sin(t * 1.2) * 0.03;
-      else if (mood === 'thinking') base = 0.36 + Math.sin(t * 5.0) * 0.13;
-      else                          base = 0.66 + (Math.sin(t * 11) * 0.5 + 0.5) * 0.28 * (0.6 + 0.4 * Math.sin(t * 23));
+      if (mood === 'idle')           base = 0.16 + Math.sin(t * 1.2) * 0.03;
+      else if (mood === 'thinking')  base = 0.36 + Math.sin(t * 5.0) * 0.13;
+      else if (mood === 'listening') base = 0.30 + Math.sin(t * 7.0) * 0.10;
+      else                           base = 0.66 + (Math.sin(t * 11) * 0.5 + 0.5) * 0.28 * (0.6 + 0.4 * Math.sin(t * 23));
       if (reduce) base *= 0.5;
       energy += (base - energy) * 0.12;
 
@@ -325,6 +329,8 @@ window.registerPage('dashboard', function initDashboard() {
     return {
       setMood(m) { mood = m; },
       speak(ms) { mood = 'speaking'; speakUntil = performance.now() + (ms || 2500); },
+      // transient energy spike — call per spoken word so the blob pulses in sync with the voice
+      kick(a) { energy = Math.min(1.5, energy + (a || 0.35)); },
       destroy() {
         if (raf) cancelAnimationFrame(raf);
         if (ro) ro.disconnect(); else window.removeEventListener('resize', resize);
@@ -367,6 +373,9 @@ window.registerPage('dashboard', function initDashboard() {
           <div class="ai-orb-caption">
             <div class="ai-orb-greeting">${greeting}, ${escapeHtml(userName)}</div>
             <div class="ai-orb-status" id="aiOrbStatus">I'm listening. Ask me anything.</div>
+            <button class="ai-voice-toggle" id="aiVoiceToggle" type="button" aria-pressed="true" title="Toggle the AI's voice">
+              <span id="aiVoiceToggleIcon">🔊</span><span id="aiVoiceToggleLabel">Voice on</span>
+            </button>
           </div>
         </div>
 
@@ -393,6 +402,7 @@ window.registerPage('dashboard', function initDashboard() {
         <!-- Chat input -->
         <form class="ai-chat-form" id="aiChatForm">
           <input type="text" id="aiChatInput" class="ai-chat-input" placeholder="Ask Onyxra anything…" autocomplete="off" />
+          <button type="button" class="ai-chat-mic" id="aiChatMic" aria-label="Speak to Onyxra" title="Hold a conversation — tap to talk">🎤</button>
           <button type="submit" class="ai-chat-send" id="aiChatSend" aria-label="Send">→</button>
         </form>
 
@@ -401,6 +411,7 @@ window.registerPage('dashboard', function initDashboard() {
 
     initOrb();
     initChat();
+    initVoice();
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -432,6 +443,8 @@ window.registerPage('dashboard', function initDashboard() {
         const text = (input.value || '').trim();
         if (!text) return;
         input.value = '';
+        // Keep speech synthesis unlocked — must be touched inside a user gesture.
+        if (voiceOn && 'speechSynthesis' in window) { try { window.speechSynthesis.resume(); } catch (e2) {} }
         await sendChat(text);
       });
     }
@@ -483,9 +496,13 @@ window.registerPage('dashboard', function initDashboard() {
       appendMessage('assistant', reply);
 
       const dur = Math.max(1800, Math.min(6500, reply.length * 32));
-      if (orb) orb.speak(dur);
-      setStatus('Speaking…');
-      speakTimer = setTimeout(() => setStatus("I'm listening. Ask me anything."), dur);
+      if (voiceOn && 'speechSynthesis' in window) {
+        speakAloud(reply, dur);          // talk out loud + pulse the orb per word
+      } else {
+        if (orb) orb.speak(dur);         // silent: just the speaking-pulse animation
+        setStatus('Speaking…');
+        speakTimer = setTimeout(() => setStatus("I'm listening. Ask me anything."), dur);
+      }
     } catch (err) {
       typingEl.remove();
       appendMessage('assistant', `⚠️ Network error: ${err.message}`, true);
@@ -514,6 +531,125 @@ window.registerPage('dashboard', function initDashboard() {
     thread.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
     return el;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     VOICE — the orb literally talks (TTS) + you can talk to it (STT)
+  ───────────────────────────────────────────────────────────── */
+  function speakAloud(text, fallbackDur) {
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel(); // stop anything already queued
+      // Strip markdown + emoji so the voice reads cleanly.
+      const clean = String(text)
+        .replace(/[*_`#>]/g, '')
+        .replace(/\s*[•\-]\s+/g, ', ')
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (!clean) { if (orb) orb.speak(fallbackDur); return; }
+
+      const u = new SpeechSynthesisUtterance(clean);
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.rate = 1.03; u.pitch = 1.0; u.volume = 1.0;
+      u.onstart    = () => { if (orb) orb.setMood('speaking'); setStatus('Speaking…'); };
+      u.onboundary = () => { if (orb) orb.kick(0.30); };   // pulse the blob on each word
+      u.onend      = () => { if (orb) orb.setMood('idle'); setStatus("I'm listening. Ask me anything."); };
+      u.onerror    = u.onend;
+      synth.speak(u);
+    } catch (e) {
+      if (orb) orb.speak(fallbackDur);
+      setStatus('Speaking…');
+      speakTimer = setTimeout(() => setStatus("I'm listening. Ask me anything."), fallbackDur);
+    }
+  }
+
+  function pickVoice() {
+    const vs = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+    if (!vs.length) return null;
+    const prefer = ['Google US English', 'Samantha', 'Microsoft Aria', 'Microsoft Jenny', 'Daniel', 'Karen', 'Google UK English Female'];
+    for (const name of prefer) {
+      const hit = vs.find(v => v.name && v.name.indexOf(name) !== -1);
+      if (hit) return hit;
+    }
+    return vs.find(v => /en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || vs[0];
+  }
+
+  function syncVoiceToggle() {
+    const icon   = document.getElementById('aiVoiceToggleIcon');
+    const label  = document.getElementById('aiVoiceToggleLabel');
+    const toggle = document.getElementById('aiVoiceToggle');
+    if (icon)   icon.textContent  = voiceOn ? '🔊' : '🔇';
+    if (label)  label.textContent = voiceOn ? 'Voice on' : 'Voice off';
+    if (toggle) toggle.setAttribute('aria-pressed', voiceOn ? 'true' : 'false');
+  }
+
+  function initVoice() {
+    // ── Talk-back toggle ──
+    const toggle = document.getElementById('aiVoiceToggle');
+    if (toggle) {
+      syncVoiceToggle();
+      toggle.addEventListener('click', () => {
+        voiceOn = !voiceOn;
+        try { localStorage.setItem('onyxra_voice', voiceOn ? 'on' : 'off'); } catch (e) {}
+        if (!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+        syncVoiceToggle();
+      });
+    }
+
+    // Warm up the voice list (loads async on some browsers).
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+
+    // ── Mic / speech-to-text ──
+    const micBtn = document.getElementById('aiChatMic');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!micBtn) return;
+    if (!SR) { micBtn.style.display = 'none'; return; } // unsupported (e.g. Firefox) → hide
+
+    function stopListening() {
+      if (!listening && !recog) return;
+      listening = false;
+      micBtn.classList.remove('listening');
+      try { recog && recog.stop(); } catch (e) {}
+      if (orb) orb.setMood('idle');
+      const st = document.getElementById('aiOrbStatus');
+      if (st && st.textContent === 'Listening…') setStatus("I'm listening. Ask me anything.");
+    }
+
+    function startListening() {
+      try {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // don't talk over the user
+        recog = new SR();
+        recog.lang = 'en-US';
+        recog.interimResults = true;
+        recog.continuous = false;
+        listening = true;
+        micBtn.classList.add('listening');
+        if (orb) orb.setMood('listening');
+        setStatus('Listening…', true);
+        const input = document.getElementById('aiChatInput');
+
+        recog.onresult = e => {
+          let txt = '';
+          for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+          if (input) input.value = txt;
+          if (e.results[e.results.length - 1].isFinal) {
+            const finalText = txt.trim();
+            stopListening();
+            if (finalText) { if (input) input.value = ''; sendChat(finalText); }
+          }
+        };
+        recog.onerror = () => stopListening();
+        recog.onend   = () => { if (listening) stopListening(); };
+        recog.start();
+      } catch (e) { stopListening(); }
+    }
+
+    micBtn.addEventListener('click', () => listening ? stopListening() : startListening());
   }
 
   /* ─────────────────────────────────────────────────────────────
