@@ -15,7 +15,10 @@ import { createSupabaseServer } from '../../../lib/supabase-server';
 
 export const runtime = 'edge';
 
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-5';
+// Model can be overridden without a redeploy by setting AI_GATEWAY_MODEL,
+// or per-request via the `model` field in the POST body (used for probing
+// which models the current AI Gateway plan allows).
+const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || 'anthropic/claude-sonnet-4-5';
 
 function buildSystemPrompt(profile, snapshot) {
   const name = profile?.display_name || snapshot?.profile?.name || 'there';
@@ -59,7 +62,7 @@ export async function POST(request) {
       );
     }
 
-    const { messages = [], snapshot = {} } = await request.json();
+    const { messages = [], snapshot = {}, model } = await request.json();
 
     // Single-user mode: auth is OPTIONAL. If a Supabase session happens to
     // exist we enrich the prompt with the stored profile, but we never block
@@ -85,7 +88,7 @@ export async function POST(request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: model || DEFAULT_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,
