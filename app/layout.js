@@ -11,6 +11,16 @@ export const metadata = {
   title: 'Onyxra',
   description: 'Personal Life Operating System — Nutrition, Workout, Business, Wealth, Creative, Vision',
   manifest: '/manifest.json',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
