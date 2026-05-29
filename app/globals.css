@@ -425,14 +425,35 @@ button { background: none; border: none; cursor: pointer; font-family: inherit; 
   text-transform: uppercase;
 }
 
-/* Profile card pinned at bottom of sidebar */
+/* Profile card pinned at bottom of sidebar — now a button → Settings */
 .nav-profile {
+  width: 100%;
   padding: 12px 14px;
+  border: none;
   border-top: 1px solid var(--border);
+  background: none;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.nav-profile:hover {
+  background: rgba(255,255,255,0.04);
+}
+.nav-profile-gear {
+  margin-left: auto;
+  font-size: 15px;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color 0.15s, transform 0.3s ease;
+}
+.nav-profile:hover .nav-profile-gear {
+  color: var(--text);
+  transform: rotate(45deg);
 }
 
 .nav-profile-avatar {
@@ -3884,6 +3905,80 @@ select.form-input option { background: #141920; color: var(--text); }
   margin: 0 auto;
   padding: 0 4px 80px;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   TALKING-ORB DASHBOARD — the dashboard IS the AI
+════════════════════════════════════════════════════════════════ */
+.ai-dash {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 4px 80px;
+}
+.ai-orb-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 4px;
+}
+.ai-orb-canvas {
+  display: block;
+  width: clamp(220px, 56vw, 340px);
+  height: clamp(220px, 56vw, 340px);
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+  cursor: pointer;
+  filter: drop-shadow(0 12px 44px rgba(79,140,247,0.35));
+}
+.ai-orb-caption {
+  text-align: center;
+  margin-top: 2px;
+}
+.ai-orb-greeting {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(22px, 5.5vw, 30px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+}
+.ai-orb-status {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 5px;
+  min-height: 18px;
+  transition: color 0.2s;
+}
+.ai-orb-status.thinking { color: #4fc3f7; }
+
+/* suggested prompt pills */
+.ai-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 14px 0 18px;
+}
+.ai-suggest-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: rgba(255,255,255,0.8);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
+}
+.ai-suggest-btn:hover {
+  background: rgba(124,106,247,0.14);
+  border-color: rgba(124,106,247,0.4);
+  color: #fff;
+}
+.ai-suggest-btn:active { transform: scale(0.97); }
+
+/* sector shortcut row reuses .ai-ctas / .ai-cta-btn */
+.ai-quick { margin-bottom: 22px; }
 
 /* ── AI Greeting ── */
 .ai-greeting {

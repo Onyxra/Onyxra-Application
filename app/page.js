@@ -66,6 +66,17 @@ export default function Home() {
             <span className="drawer-nav-icon">⬡</span><span>Dashboard</span>
           </a>
 
+          <div className="drawer-section-label">People</div>
+          <a className="drawer-nav-item" data-page="relationship" href="#relationship">
+            <span className="drawer-nav-icon">💕</span><span>Relationship</span>
+          </a>
+          <a className="drawer-nav-item" data-page="family" href="#family">
+            <span className="drawer-nav-icon">❤︎</span><span>Family</span>
+          </a>
+          <a className="drawer-nav-item" data-page="friends" href="#friends">
+            <span className="drawer-nav-icon">🧑</span><span>Friends</span>
+          </a>
+
           <div className="drawer-section-label">Health</div>
           <a className="drawer-nav-item" data-page="workout" href="#workout">
             <span className="drawer-nav-icon">◉</span><span>Workout</span>
@@ -83,17 +94,6 @@ export default function Home() {
           <div id="drawerBusinessItems" className="nav-dynamic-section"></div>
           <a className="drawer-nav-item nav-add-sub" id="drawerAddBusinessBtn" href="#business">
             <span className="drawer-nav-icon">+</span><span>Add Business</span>
-          </a>
-
-          <div className="drawer-section-label">People</div>
-          <a className="drawer-nav-item" data-page="relationship" href="#relationship">
-            <span className="drawer-nav-icon">💕</span><span>Relationship</span>
-          </a>
-          <a className="drawer-nav-item" data-page="family" href="#family">
-            <span className="drawer-nav-icon">❤︎</span><span>Family</span>
-          </a>
-          <a className="drawer-nav-item" data-page="friends" href="#friends">
-            <span className="drawer-nav-icon">🧑</span><span>Friends</span>
           </a>
 
           <div className="drawer-section-label">Interests</div>
@@ -144,6 +144,21 @@ export default function Home() {
             <span className="nav-label">Dashboard</span>
           </a>
 
+          {/* ── PEOPLE ── */}
+          <div className="nav-section-label">People</div>
+          <a className="nav-item" data-page="relationship" href="#relationship">
+            <span className="nav-icon">💕</span>
+            <span className="nav-label">Relationship</span>
+          </a>
+          <a className="nav-item" data-page="family" href="#family">
+            <span className="nav-icon">❤︎</span>
+            <span className="nav-label">Family</span>
+          </a>
+          <a className="nav-item" data-page="friends" href="#friends">
+            <span className="nav-icon">🧑</span>
+            <span className="nav-label">Friends</span>
+          </a>
+
           {/* ── HEALTH ── */}
           <div className="nav-section-label">Health</div>
           <a className="nav-item" data-page="workout" href="#workout">
@@ -170,21 +185,6 @@ export default function Home() {
             <span className="nav-label">Add Business</span>
           </a>
 
-          {/* ── PEOPLE ── */}
-          <div className="nav-section-label">People</div>
-          <a className="nav-item" data-page="relationship" href="#relationship">
-            <span className="nav-icon">💕</span>
-            <span className="nav-label">Relationship</span>
-          </a>
-          <a className="nav-item" data-page="family" href="#family">
-            <span className="nav-icon">❤︎</span>
-            <span className="nav-label">Family</span>
-          </a>
-          <a className="nav-item" data-page="friends" href="#friends">
-            <span className="nav-icon">🧑</span>
-            <span className="nav-label">Friends</span>
-          </a>
-
           {/* ── INTERESTS ── */}
           <div className="nav-section-label">Interests</div>
           <div id="navInterestsItems" className="nav-dynamic-section"></div>
@@ -192,21 +192,16 @@ export default function Home() {
             <span className="nav-icon">+</span>
             <span className="nav-label">Add Interest</span>
           </a>
-
-          <div className="nav-divider nav-settings-divider"></div>
-          <a className="nav-item nav-settings-item" data-page="settings" href="#settings">
-            <span className="nav-icon">⚙</span>
-            <span className="nav-label">Settings</span>
-          </a>
         </div>
 
-        <div className="nav-profile">
+        <button className="nav-profile" id="navProfileBtn" type="button" title="Settings" aria-label="Open settings">
           <div className="nav-profile-avatar" id="navProfileAvatar">--</div>
           <div className="nav-profile-info">
             <div className="nav-profile-name" id="navProfileName">User</div>
             <div className="nav-profile-goal" id="navProfileGoal"></div>
           </div>
-        </div>
+          <span className="nav-profile-gear" aria-hidden="true">⚙</span>
+        </button>
       </nav>
 
       {/* ══ MAIN CONTENT ══ */}

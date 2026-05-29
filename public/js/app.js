@@ -252,6 +252,16 @@ function setupNavAddButtons() {
   wire('drawerAddBusinessBtn','business', '__onyxraShowNewVenture');
   wire('navAddInterestBtn',   'passions', '__onyxraShowNewPassion');
   wire('drawerAddInterestBtn','passions', '__onyxraShowNewPassion');
+
+  // Profile chip (desktop sidebar footer) → Settings.
+  // Settings was removed as a top-level nav item and lives here now.
+  const profileBtn = document.getElementById('navProfileBtn');
+  if (profileBtn) {
+    profileBtn.addEventListener('click', e => {
+      e.preventDefault();
+      navigateTo('settings');
+    });
+  }
 }
 // Run setup once DOM has the buttons
 setupNavAddButtons();

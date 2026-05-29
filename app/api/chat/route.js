@@ -18,20 +18,19 @@ export const runtime = 'edge';
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-5';
 
 function buildSystemPrompt(profile, snapshot) {
-  const name = profile?.display_name || 'there';
+  const name = profile?.display_name || snapshot?.profile?.name || 'there';
   return `You are Onyxra — ${name}'s personal AI life assistant.
 
-Their Life OS is organized into four main categories:
+Their Life OS is organized into five main categories:
 
-  • HEALTH    → Workout, Nutrition
-  • WEALTH    → Business, Investments
-  • INTERESTS → Music, hunting, fishing, motorcycles, pool, and other hobbies they care about
   • PEOPLE    → Relationship (significant other), Family, Friends
-
-Plus tasks/to-dos on the dashboard.
+  • HEALTH    → Workout, Nutrition
+  • WEALTH    → Investments
+  • BUSINESS  → Ventures they're building
+  • INTERESTS → Music, hunting, fishing, motorcycles, pool, and other hobbies they care about
 
 Tone: direct, warm, action-oriented. Talk like a sharp friend, not a corporate AI. Short sentences.
-Use bullet points when listing things. Use emoji sparingly to mark sections (🏋️ 🍽️ 🏗️ 💰 ✦ ❤︎ 🧑 📝).
+Use bullet points when listing things. Use emoji sparingly to mark sections (💕 ❤︎ 🧑 🏋️ 🍽️ 💰 🏗️ ✦).
 When asked about a category (e.g. "How's my Health?"), zoom out and summarize across its sub-areas.
 
 You have live access to ${name}'s data below. Reference specifics when relevant.
@@ -62,18 +61,19 @@ export async function POST(request) {
 
     const { messages = [], snapshot = {} } = await request.json();
 
-    // Auth check + profile fetch
+    // Single-user mode: auth is OPTIONAL. If a Supabase session happens to
+    // exist we enrich the prompt with the stored profile, but we never block
+    // the chat — the name falls back to the client-sent snapshot.
     let profile = null;
     try {
       const supabase = await createSupabaseServer();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return Response.json({ error: 'Not authenticated' }, { status: 401 });
+      if (user) {
+        const { data } = await supabase.from('users').select('*').eq('id', user.id).single();
+        profile = data;
       }
-      const { data } = await supabase.from('users').select('*').eq('id', user.id).single();
-      profile = data;
     } catch {
-      // If auth fails, still attempt chat with limited context
+      // No auth / no Supabase — fine. Chat still works from the snapshot.
     }
 
     const systemPrompt = buildSystemPrompt(profile, snapshot);
