@@ -410,6 +410,10 @@ window.STATE = {
     if (typeof this.data.life.bestStreak !== 'number') this.data.life.bestStreak = 0;
     if (this.data.life.lastActiveDay === undefined) this.data.life.lastActiveDay = null;
     if (!this.data.life.ringGoals) this.data.life.ringGoals = { focus: 3, body: 1, connect: 1 };
+    // Seed seen-badges once so pre-existing progress doesn't trigger a confetti storm.
+    if (this.data.life.seenBadges === undefined) {
+      this.data.life.seenBadges = this.computeAchievements().filter(b => b.earned).map(b => b.id);
+    }
 
       /* ── State migration: safely add fields ── */
       const ds = this.data.dashboard;
@@ -623,6 +627,17 @@ window.STATE = {
     this.save();
   },
 
+  updateJournalEntry(id, fields) {
+    const e = (this.data.journal?.entries || []).find(x => x.id === id);
+    if (!e) return;
+    if (fields.text !== undefined) e.text = fields.text;
+    if (fields.mood !== undefined) {
+      e.mood = (fields.mood == null) ? null : Number(fields.mood);
+      if (e.mood) this._pushMetric('mood', e.mood, e.day);
+    }
+    this.save();
+  },
+
   removeJournalEntry(id) {
     const j = this.data.journal;
     if (!j) return;
@@ -683,6 +698,57 @@ window.STATE = {
     if (!it.log[_dayKey(d)]) d.setDate(d.getDate() - 1);
     while (it.log[_dayKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
     return streak;
+  },
+
+  /* ──────────────────────────────────────────────────────────────
+     ACHIEVEMENTS — milestone badges computed from live data.
+     computeAchievements() returns every badge with an `earned` flag +
+     progress; checkNewAchievements() returns ids freshly earned since
+     last check (used to fire confetti). seenBadges is seeded silently
+     on first migrate so existing progress never spam-celebrates.
+  ────────────────────────────────────────────────────────────── */
+  computeAchievements() {
+    const d = this.data;
+    const best        = d.life?.bestStreak || 0;
+    const jcount      = (d.journal?.entries || []).length;
+    const hcount      = (d.habits?.items || []).length;
+    const habitStreaks = (d.habits?.items || []).map(h => this.habitStreak(h.id));
+    const maxHabit    = habitStreaks.length ? Math.max.apply(null, habitStreaks) : 0;
+    const wcount      = (d.workout?.logbook || []).length + (d.workout?.log || []).length;
+    const doneTasks   = (d.dashboard?.tasks || []).filter(t => t.done).length;
+    const weighIns    = (d.metrics?.weight || []).length;
+    const totalAct    = jcount + (d.dashboard?.tasks || []).length + hcount + wcount + weighIns;
+
+    const defs = [
+      { id: 'first_step',      icon: '👣', name: 'First Step',       desc: 'Log your very first thing',     cur: totalAct,   target: 1 },
+      { id: 'streak_3',        icon: '🔥', name: 'On a Roll',        desc: 'Reach a 3-day streak',          cur: best,       target: 3 },
+      { id: 'streak_7',        icon: '🗓️', name: 'Full Week',        desc: 'Reach a 7-day streak',          cur: best,       target: 7 },
+      { id: 'streak_30',       icon: '🏆', name: 'Unstoppable',      desc: 'Reach a 30-day streak',         cur: best,       target: 30 },
+      { id: 'streak_100',      icon: '💎', name: 'Centurion',        desc: 'Reach a 100-day streak',        cur: best,       target: 100 },
+      { id: 'journal_1',       icon: '📓', name: 'Dear Diary',       desc: 'Write your first entry',        cur: jcount,     target: 1 },
+      { id: 'journal_10',      icon: '✍️', name: 'Reflective',       desc: 'Write 10 journal entries',      cur: jcount,     target: 10 },
+      { id: 'journal_50',      icon: '📚', name: 'Chronicler',       desc: 'Write 50 journal entries',      cur: jcount,     target: 50 },
+      { id: 'habit_first',     icon: '🌱', name: 'New Leaf',         desc: 'Create your first habit',       cur: hcount,     target: 1 },
+      { id: 'habit_streak_7',  icon: '⚡', name: 'Habit Hero',       desc: 'Keep a habit 7 days straight',  cur: maxHabit,   target: 7 },
+      { id: 'habit_streak_30', icon: '🚀', name: 'Habit Master',     desc: 'Keep a habit 30 days straight', cur: maxHabit,   target: 30 },
+      { id: 'workout_10',      icon: '💪', name: 'Iron Will',        desc: 'Log 10 workouts',               cur: wcount,     target: 10 },
+      { id: 'weigh_in_5',      icon: '⚖️', name: 'Dialed In',        desc: 'Log your weight 5 times',       cur: weighIns,   target: 5 },
+      { id: 'task_25',         icon: '✅', name: 'Executor',         desc: 'Complete 25 tasks',             cur: doneTasks,  target: 25 },
+    ];
+    return defs.map(b => ({ ...b, earned: b.cur >= b.target, pct: Math.min(100, Math.round((b.cur / b.target) * 100)) }));
+  },
+
+  /** Returns badge objects newly earned since last check (and records them). */
+  checkNewAchievements() {
+    const life = this.data.life || (this.data.life = {});
+    if (!Array.isArray(life.seenBadges)) life.seenBadges = [];
+    const earned = this.computeAchievements().filter(b => b.earned);
+    const fresh = earned.filter(b => !life.seenBadges.includes(b.id));
+    if (fresh.length) {
+      life.seenBadges.push(...fresh.map(b => b.id));
+      this.save();
+    }
+    return fresh;
   },
 
   /* ── Metric mutators (time-series) ── */

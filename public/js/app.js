@@ -41,10 +41,12 @@ window.registerPage = function(name, fn) {
 /* ══════════════════════════════════════════════════════════════════
    ROUTER
 ════════════════════════════════════════════════════════════════ */
-const VALID_PAGES = ['dashboard', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'relationship', 'family', 'friends', 'settings'];
+const VALID_PAGES = ['dashboard', 'journal', 'insights', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'relationship', 'family', 'friends', 'settings'];
 
 const PAGE_NAMES = {
   dashboard:    'Dashboard',
+  journal:      'Journal',
+  insights:     'Insights',
   nutrition:    'Nutrition',
   workout:      'Workout',
   business:     'Business',
@@ -1274,4 +1276,74 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
   window.openCapture = openCapture;
   ensureUI();
   updateFabVisibility();
+})();
+
+
+/* ══════════════════════════════════════════════════════════════════
+   CELEBRATION — confetti + achievement watcher
+   When a milestone is newly earned (streaks, journaling, habits, …),
+   we toast it and fire a confetti burst. seenBadges (seeded silently on
+   first load) guarantees existing progress never spam-celebrates.
+════════════════════════════════════════════════════════════════ */
+window.onyxConfetti = function (opts) {
+  opts = opts || {};
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+  const count = opts.count || 110;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'onyx-confetti';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = () => window.innerWidth, h = () => window.innerHeight;
+  function size() { canvas.width = w() * dpr; canvas.height = h() * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  size();
+  const colors = ['#4fc3f7', '#7c6af7', '#f06292', '#3ddc6e', '#f5c842', '#ff6b35'];
+  const ox = (opts.x != null) ? opts.x : w() / 2;
+  const oy = (opts.y != null) ? opts.y : h() * 0.32;
+  const parts = Array.from({ length: count }, (_, i) => ({
+    x: ox, y: oy,
+    vx: Math.cos((i / count) * 6.283) * (2 + (i % 6)) + (i % 2 ? 1.5 : -1.5),
+    vy: -(5 + (i % 8)),
+    g: 0.18 + (i % 3) * 0.03,
+    r: 3 + (i % 4),
+    rot: (i * 37) % 360, vr: (i % 2 ? 7 : -7),
+    color: colors[i % colors.length],
+    life: 0, max: 95 + (i % 45),
+  }));
+  let raf, frame = 0;
+  function tick() {
+    frame++;
+    ctx.clearRect(0, 0, w(), h());
+    let alive = false;
+    for (const p of parts) {
+      p.life++; if (p.life > p.max) continue;
+      alive = true;
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      const a = Math.max(0, 1 - p.life / p.max);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2); ctx.restore();
+    }
+    if (alive && frame < 220) raf = requestAnimationFrame(tick);
+    else { cancelAnimationFrame(raf); canvas.remove(); }
+  }
+  raf = requestAnimationFrame(tick);
+};
+
+(function achievementWatch() {
+  let pending = false;
+  function celebrate() {
+    if (!window.STATE || typeof window.STATE.checkNewAchievements !== 'function') return;
+    const fresh = window.STATE.checkNewAchievements();
+    fresh.forEach((b, i) => setTimeout(() => {
+      if (window.toast) window.toast('Achievement unlocked — ' + b.name + '!', { type: 'success', icon: b.icon, duration: 4200 });
+      if (window.haptic) window.haptic('success');
+      if (window.onyxConfetti) window.onyxConfetti();
+    }, i * 950));
+  }
+  window.addEventListener('onyxra:state-changed', () => {
+    if (pending) return;
+    pending = true;
+    setTimeout(() => { pending = false; celebrate(); }, 140);
+  });
 })();

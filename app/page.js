@@ -65,6 +65,12 @@ export default function Home() {
           <a className="drawer-nav-item" data-page="dashboard" href="#dashboard">
             <span className="drawer-nav-icon">⬡</span><span>Dashboard</span>
           </a>
+          <a className="drawer-nav-item" data-page="journal" href="#journal">
+            <span className="drawer-nav-icon">📓</span><span>Journal</span>
+          </a>
+          <a className="drawer-nav-item" data-page="insights" href="#insights">
+            <span className="drawer-nav-icon">📈</span><span>Insights</span>
+          </a>
 
           <div className="drawer-section-label">People</div>
           <a className="drawer-nav-item" data-page="relationship" href="#relationship">
@@ -143,6 +149,14 @@ export default function Home() {
             <span className="nav-icon">⬡</span>
             <span className="nav-label">Dashboard</span>
           </a>
+          <a className="nav-item" data-page="journal" href="#journal">
+            <span className="nav-icon">📓</span>
+            <span className="nav-label">Journal</span>
+          </a>
+          <a className="nav-item" data-page="insights" href="#insights">
+            <span className="nav-icon">📈</span>
+            <span className="nav-label">Insights</span>
+          </a>
 
           {/* ── PEOPLE ── */}
           <div className="nav-section-label">People</div>
@@ -210,6 +224,16 @@ export default function Home() {
         {/* Dashboard */}
         <section className="page" id="page-dashboard" data-accent="dashboard">
           <div className="page-inner" id="dashboard-inner"></div>
+        </section>
+
+        {/* Journal */}
+        <section className="page" id="page-journal" data-accent="creative">
+          <div className="page-inner" id="journal-inner"></div>
+        </section>
+
+        {/* Insights */}
+        <section className="page" id="page-insights" data-accent="dashboard">
+          <div className="page-inner" id="insights-inner"></div>
         </section>
 
         {/* Nutrition */}
@@ -386,6 +410,8 @@ export default function Home() {
       <Script src="/js/state.js" strategy="afterInteractive" />
       <Script src="/js/app.js" strategy="afterInteractive" />
       <Script src="/js/pages/dashboard.js" strategy="afterInteractive" />
+      <Script src="/js/pages/journal.js" strategy="afterInteractive" />
+      <Script src="/js/pages/insights.js" strategy="afterInteractive" />
       <Script src="/js/pages/nutrition.js" strategy="afterInteractive" />
       <Script src="/js/pages/workout.js" strategy="afterInteractive" />
       <Script src="/js/pages/business.js" strategy="afterInteractive" />

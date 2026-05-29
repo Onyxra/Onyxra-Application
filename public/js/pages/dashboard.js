@@ -355,6 +355,8 @@ window.registerPage('dashboard', function initDashboard() {
     'I weighed 182 today',
   ];
 
+  const BRIEF_PROMPT = "Give me a punchy daily briefing. Greet me by name, then in short bullet lines: my #1 priority this week, today's workout day, anyone I should reach out to, one habit to keep alive, and end with a single motivating line. Keep it tight — under 7 short lines.";
+
   const SECTORS = [
     { label: 'People',    icon: '💕',  page: 'relationship', accent: '#f06292' },
     { label: 'Health',    icon: '◉',  page: 'workout',      accent: '#ff6b35' },
@@ -378,6 +380,9 @@ window.registerPage('dashboard', function initDashboard() {
             </button>
           </div>
         </div>
+
+        <!-- Daily briefing -->
+        <button class="ai-brief-btn" id="aiBriefBtn" type="button">☀️ Brief me on my day</button>
 
         <!-- Today command center (Life Rings + streak + mood + habits + focus) -->
         <div class="onyx-today" id="onyxToday"></div>
@@ -468,6 +473,13 @@ window.registerPage('dashboard', function initDashboard() {
         const p = btn.dataset.prompt;
         if (p) sendChat(p);
       });
+    });
+
+    const briefBtn = document.getElementById('aiBriefBtn');
+    if (briefBtn) briefBtn.addEventListener('click', () => {
+      if (window.haptic) window.haptic('tap');
+      if (voiceOn && 'speechSynthesis' in window) { try { window.speechSynthesis.resume(); } catch (e) {} }
+      sendChat(BRIEF_PROMPT);
     });
 
     document.querySelectorAll('.ai-quick .ai-cta-btn').forEach(btn => {
