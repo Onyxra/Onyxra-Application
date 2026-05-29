@@ -3717,6 +3717,21 @@ select.form-input option { background: #141920; color: var(--text); }
   }
 }
 
+/* =================================================================
+   DESKTOP / TABLET: hamburger topbar + slide-out drawer
+   Replaces the fixed left sidebar at >=769px so the orb dashboard
+   is the full-bleed centerpiece. The phone (<=768px) keeps its
+   bottom tab bar, untouched.
+================================================================= */
+@media (min-width: 769px) {
+  .mobile-topbar { display: flex; }
+  .sidebar { display: none; }
+  .main-content {
+    margin-left: 0;
+    margin-top: calc(54px + env(safe-area-inset-top, 0px));
+  }
+}
+
 /* ── Food Library ── */
 .food-lib-filter-pills {
   display: flex;
@@ -4401,11 +4416,11 @@ select.form-input option { background: #141920; color: var(--text); }
 .ai-chat-send:hover { filter: brightness(1.15); }
 .ai-chat-send:active { transform: scale(0.95); }
 
-/* Desktop: nudge chat input to align with content */
+/* Desktop: center the chat input under the orb column (no sidebar offset) */
 @media (min-width: 769px) {
   .ai-chat-form {
-    left: calc(240px + 24px);
-    right: 24px;
+    left: 16px;
+    right: 16px;
     max-width: 720px;
     margin: 0 auto;
   }
