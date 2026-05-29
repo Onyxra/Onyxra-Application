@@ -23,10 +23,10 @@ function buildSystemPrompt(profile, snapshot) {
 
 Their Life OS is organized into four main categories:
 
-  • HEALTH        → Workout, Nutrition
-  • WEALTH        → Business, Investments
-  • INTERESTS     → Music, hunting, fishing, motorcycles, pool, and other hobbies they care about
-  • RELATIONSHIPS → Family, Friends
+  • HEALTH    → Workout, Nutrition
+  • WEALTH    → Business, Investments
+  • INTERESTS → Music, hunting, fishing, motorcycles, pool, and other hobbies they care about
+  • PEOPLE    → Relationship (significant other), Family, Friends
 
 Plus tasks/to-dos on the dashboard.
 

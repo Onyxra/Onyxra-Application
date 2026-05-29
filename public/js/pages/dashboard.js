@@ -24,8 +24,9 @@ window.registerPage('dashboard', function initDashboard() {
   const ns  = STATE.data.nutrition;
   const bs  = STATE.data.business;
   const ps  = STATE.data.passions;
-  const fs  = STATE.data.family  || { activeMemberId: null, members: [] };
-  const frs = STATE.data.friends || { activeMemberId: null, members: [] };
+  const fs  = STATE.data.family       || { activeMemberId: null, members: [] };
+  const frs = STATE.data.friends      || { activeMemberId: null, members: [] };
+  const rls = STATE.data.relationship || { name: '', icon: '💕', updates: [], dates: [], giftIdeas: [] };
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -87,6 +88,14 @@ window.registerPage('dashboard', function initDashboard() {
           latestUpdate: m.updates?.[0]?.text || null,
           latestUpdateDate: m.updates?.[0]?.date || null,
         })),
+      },
+      relationship: {
+        name: rls.name || null,
+        startDate: rls.startDate || null,
+        latestUpdate: rls.updates?.[0]?.text || null,
+        latestUpdateDate: rls.updates?.[0]?.date || null,
+        upcomingDates: (rls.dates || []).slice(0, 3),
+        openGiftIdeas: (rls.giftIdeas || []).filter(g => !g.given).length,
       },
     };
   }
@@ -229,6 +238,46 @@ window.registerPage('dashboard', function initDashboard() {
       cta: { label: 'Open Interests →', action: 'goto:passions' },
     });
 
+    /* ── Relationship Card ── */
+    // Find next upcoming date (cycle yearly)
+    let nextDate = null;
+    if (Array.isArray(rls.dates) && rls.dates.length) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const enriched = rls.dates.map(d => {
+        if (!d.date) return null;
+        const [, m, day] = d.date.split('-').map(Number);
+        const next = new Date(today.getFullYear(), m - 1, day);
+        if (next < today) next.setFullYear(today.getFullYear() + 1);
+        const diff = Math.round((next - today) / 86400000);
+        return { ...d, diff, when: next };
+      }).filter(Boolean).sort((a, b) => a.diff - b.diff);
+      nextDate = enriched[0] || null;
+    }
+    const openGifts = (rls.giftIdeas || []).filter(g => !g.given).length;
+    const latestRelUpdate = rls.updates?.[0];
+
+    cards.push({
+      id: 'relationship',
+      icon: '💕',
+      eyebrow: 'Relationship',
+      title: rls.name ? `${rls.icon || '💕'} ${rls.name}` : 'Add your partner',
+      accent: '#f06292',
+      gradient: 'linear-gradient(135deg, rgba(240,98,146,0.18) 0%, rgba(124,106,247,0.05) 100%)',
+      body: rls.name ? `
+        ${nextDate ? `
+          <div class="card-hint" style="margin-bottom:8px"><strong style="color:#fff">${escapeHtml(nextDate.label)}</strong> · <span style="color:#f06292">${nextDate.diff === 0 ? 'TODAY' : nextDate.diff === 1 ? 'tomorrow' : `in ${nextDate.diff} days`}</span></div>
+        ` : ''}
+        ${latestRelUpdate ? `
+          <div class="card-hint" style="line-height:1.5">"${escapeHtml(latestRelUpdate.text)}"</div>
+        ` : nextDate ? '' : `<div class="card-hint">No notes yet. Open to log a moment.</div>`}
+        ${openGifts ? `<div class="card-hint" style="font-size:11px;margin-top:8px;color:rgba(255,255,255,0.5)">🎁 ${openGifts} gift idea${openGifts === 1 ? '' : 's'} open</div>` : ''}
+      ` : `
+        <div class="card-empty">Set up your partner profile, track dates, save gift ideas.</div>
+      `,
+      cta: { label: 'Open Relationship →', action: 'goto:relationship' },
+    });
+
     /* ── Family Card ── */
     const familyMembers = fs.members || [];
     // Find the most recent update across all members
@@ -347,6 +396,7 @@ window.registerPage('dashboard', function initDashboard() {
                                             c.id === 'meals' ? 'Meals' :
                                             c.id === 'business' ? 'Business' :
                                             c.id === 'passions' ? 'Interests' :
+                                            c.id === 'relationship' ? 'Love' :
                                             c.id === 'family' ? 'Family' :
                                             c.id === 'friends' ? 'Friends' : c.id}</span>
             </button>

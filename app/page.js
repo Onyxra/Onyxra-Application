@@ -83,7 +83,10 @@ export default function Home() {
             <span className="drawer-nav-icon">✦</span><span>Interests</span>
           </a>
 
-          <div className="drawer-section-label">Relationships</div>
+          <div className="drawer-section-label">People</div>
+          <a className="drawer-nav-item" data-page="relationship" href="#relationship">
+            <span className="drawer-nav-icon">💕</span><span>Relationship</span>
+          </a>
           <a className="drawer-nav-item" data-page="family" href="#family">
             <span className="drawer-nav-icon">❤︎</span><span>Family</span>
           </a>
@@ -162,8 +165,12 @@ export default function Home() {
             <span className="nav-label">Interests</span>
           </a>
 
-          {/* ── RELATIONSHIPS ── */}
-          <div className="nav-section-label">Relationships</div>
+          {/* ── PEOPLE ── */}
+          <div className="nav-section-label">People</div>
+          <a className="nav-item" data-page="relationship" href="#relationship">
+            <span className="nav-icon">💕</span>
+            <span className="nav-label">Relationship</span>
+          </a>
           <a className="nav-item" data-page="family" href="#family">
             <span className="nav-icon">❤︎</span>
             <span className="nav-label">Family</span>
@@ -344,6 +351,11 @@ export default function Home() {
           <div className="page-inner" id="passions-inner"></div>
         </section>
 
+        {/* Relationship */}
+        <section className="page" id="page-relationship" data-accent="creative">
+          <div className="page-inner" id="relationship-inner"></div>
+        </section>
+
         {/* Family */}
         <section className="page" id="page-family" data-accent="creative">
           <div className="page-inner" id="family-inner"></div>
@@ -371,6 +383,7 @@ export default function Home() {
       <Script src="/js/pages/business.js" strategy="afterInteractive" />
       <Script src="/js/pages/wealth.js" strategy="afterInteractive" />
       <Script src="/js/pages/passions.js" strategy="afterInteractive" />
+      <Script src="/js/pages/relationship.js" strategy="afterInteractive" />
       <Script src="/js/pages/family.js" strategy="afterInteractive" />
       <Script src="/js/pages/friends.js" strategy="afterInteractive" />
       <Script src="/js/pages/settings.js" strategy="afterInteractive" />

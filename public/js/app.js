@@ -41,18 +41,19 @@ window.registerPage = function(name, fn) {
 /* ══════════════════════════════════════════════════════════════════
    ROUTER
 ════════════════════════════════════════════════════════════════ */
-const VALID_PAGES = ['dashboard', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'family', 'friends', 'settings'];
+const VALID_PAGES = ['dashboard', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'relationship', 'family', 'friends', 'settings'];
 
 const PAGE_NAMES = {
-  dashboard: 'Dashboard',
-  nutrition: 'Nutrition',
-  workout:   'Workout',
-  business:  'Business',
-  wealth:    'Investments',
-  passions:  'Interests',
-  family:    'Family',
-  friends:   'Friends',
-  settings:  'Settings',
+  dashboard:    'Dashboard',
+  nutrition:    'Nutrition',
+  workout:      'Workout',
+  business:     'Business',
+  wealth:       'Investments',
+  passions:     'Interests',
+  relationship: 'Relationship',
+  family:       'Family',
+  friends:      'Friends',
+  settings:     'Settings',
 };
 
 /**
@@ -116,12 +117,13 @@ window.addEventListener('hashchange', () => {
    Pages not listed here are non-swipeable (Dashboard, Settings, etc).
 ═══════════════════════════════════════════════════════════════════ */
 const PAGE_CATEGORIES = {
-  workout:   { category: 'Health',        siblings: ['workout', 'nutrition'] },
-  nutrition: { category: 'Health',        siblings: ['workout', 'nutrition'] },
-  business:  { category: 'Wealth',        siblings: ['business', 'wealth'] },
-  wealth:    { category: 'Wealth',        siblings: ['business', 'wealth'] },
-  family:    { category: 'Relationships', siblings: ['family',  'friends'] },
-  friends:   { category: 'Relationships', siblings: ['family',  'friends'] },
+  workout:      { category: 'Health', siblings: ['workout', 'nutrition'] },
+  nutrition:    { category: 'Health', siblings: ['workout', 'nutrition'] },
+  business:     { category: 'Wealth', siblings: ['business', 'wealth'] },
+  wealth:       { category: 'Wealth', siblings: ['business', 'wealth'] },
+  relationship: { category: 'People', siblings: ['relationship', 'family', 'friends'] },
+  family:       { category: 'People', siblings: ['relationship', 'family', 'friends'] },
+  friends:      { category: 'People', siblings: ['relationship', 'family', 'friends'] },
 };
 
 function getCurrentPage() {

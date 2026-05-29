@@ -156,6 +156,21 @@ function _defaultState() {
       members: [],
     },
 
+    /* ── Relationship ──
+       Singular: the user's significant other / partner.
+       Differs from family/friends in that it's ONE person, with
+       extra context: anniversary, gift ideas, important dates.
+    */
+    relationship: {
+      name: '',
+      icon: '💕',
+      startDate: null,
+      notes: '',
+      updates:    [],   // { id, date, text }
+      dates:      [],   // { id, label, date }    e.g. anniversary, birthday
+      giftIdeas:  [],   // { id, text, given:false, addedAt }
+    },
+
     wealth: {},
   };
 }
@@ -218,9 +233,10 @@ window.STATE = {
           nutrition: this.data.nutrition,
           business:  this.data.business,
           passions:  this.data.passions,
-          family:    this.data.family   || { activeMemberId: null, members: [] },
-          friends:   this.data.friends  || { activeMemberId: null, members: [] },
-          wealth:    this.data.wealth   || {},
+          family:       this.data.family        || { activeMemberId: null, members: [] },
+          friends:      this.data.friends       || { activeMemberId: null, members: [] },
+          relationship: this.data.relationship  || { name: '', icon: '💕', startDate: null, notes: '', updates: [], dates: [], giftIdeas: [] },
+          wealth:       this.data.wealth        || {},
         })
         .eq('user_id', _userId);
       if (error) throw error;
@@ -268,9 +284,10 @@ window.STATE = {
               nutrition: stateRow.nutrition || _defaultState().nutrition,
               business:  stateRow.business  || _defaultState().business,
               passions:  stateRow.passions  || _defaultState().passions,
-              family:    stateRow.family    || _defaultState().family,
-              friends:   stateRow.friends   || _defaultState().friends,
-              wealth:    stateRow.wealth    || {},
+              family:       stateRow.family        || _defaultState().family,
+              friends:      stateRow.friends       || _defaultState().friends,
+              relationship: stateRow.relationship  || _defaultState().relationship,
+              wealth:       stateRow.wealth        || {},
             };
             this._migrate();
             console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
@@ -320,7 +337,8 @@ window.STATE = {
     if (!this.data.business)  this.data.business  = d.business;
     if (!this.data.passions)  this.data.passions  = d.passions;
     if (!this.data.family)    this.data.family    = d.family;
-    if (!this.data.friends)   this.data.friends   = d.friends;
+    if (!this.data.friends)      this.data.friends      = d.friends;
+    if (!this.data.relationship) this.data.relationship = d.relationship;
     if (!this.data.wealth)    this.data.wealth    = {};
 
       /* ── State migration: safely add fields ── */
@@ -699,6 +717,91 @@ window.STATE = {
     const m = this._getFriend(memberId);
     if (!m) return;
     m.goals = (m.goals || []).filter(g => g.id !== goalId);
+    this.save();
+  },
+
+  /* ── Relationship mutators ──
+     Singular partner. All mutators operate on STATE.data.relationship.
+  */
+
+  _ensureRel() {
+    if (!this.data.relationship) {
+      this.data.relationship = {
+        name: '', icon: '💕', startDate: null, notes: '',
+        updates: [], dates: [], giftIdeas: [],
+      };
+    }
+    return this.data.relationship;
+  },
+
+  setRelationshipProfile(fields) {
+    const r = this._ensureRel();
+    Object.assign(r, fields);
+    this.save();
+  },
+
+  addRelationshipUpdate(text) {
+    const r = this._ensureRel();
+    if (!Array.isArray(r.updates)) r.updates = [];
+    r.updates.unshift({
+      id: 'ru_' + Date.now(),
+      date: new Date().toISOString(),
+      text,
+    });
+    if (r.updates.length > 200) r.updates.length = 200;
+    this.save();
+  },
+
+  removeRelationshipUpdate(updateId) {
+    const r = this._ensureRel();
+    r.updates = (r.updates || []).filter(u => u.id !== updateId);
+    this.save();
+  },
+
+  addRelationshipDate(label, date) {
+    const r = this._ensureRel();
+    if (!Array.isArray(r.dates)) r.dates = [];
+    r.dates.push({
+      id: 'rd_' + Date.now(),
+      label,
+      date,
+    });
+    // Keep sorted by date (MM-DD ignoring year, so anniversaries cycle yearly)
+    r.dates.sort((a, b) => {
+      const aMd = (a.date || '').slice(5);
+      const bMd = (b.date || '').slice(5);
+      return aMd.localeCompare(bMd);
+    });
+    this.save();
+  },
+
+  removeRelationshipDate(dateId) {
+    const r = this._ensureRel();
+    r.dates = (r.dates || []).filter(d => d.id !== dateId);
+    this.save();
+  },
+
+  addGiftIdea(text) {
+    const r = this._ensureRel();
+    if (!Array.isArray(r.giftIdeas)) r.giftIdeas = [];
+    r.giftIdeas.unshift({
+      id: 'rg_' + Date.now(),
+      text,
+      given: false,
+      addedAt: new Date().toISOString(),
+    });
+    this.save();
+  },
+
+  toggleGiftIdea(ideaId) {
+    const r = this._ensureRel();
+    const g = (r.giftIdeas || []).find(g => g.id === ideaId);
+    if (g) { g.given = !g.given; this.save(); }
+  },
+
+  removeGiftIdea(ideaId) {
+    const r = this._ensureRel();
+    r.giftIdeas = (r.giftIdeas || []).filter(g => g.id !== ideaId);
     this.save();
   },
 
