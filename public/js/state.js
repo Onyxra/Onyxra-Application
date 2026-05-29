@@ -197,6 +197,12 @@ window.STATE = {
     if (!this.data) return;
     this.data._lastUpdated = new Date().toISOString();
 
+    // Re-render dynamic nav (Business/Interests sub-items) on every mutation
+    if (typeof window.renderDynamicNav === 'function') {
+      // Defer so callers can finish any in-progress UI work first
+      Promise.resolve().then(() => window.renderDynamicNav());
+    }
+
     // Debounce writes — wait 500ms after last mutation before saving
     if (_saveTimer) clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => {

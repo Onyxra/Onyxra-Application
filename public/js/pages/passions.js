@@ -97,8 +97,13 @@ window.registerPage('passions', function initPassions() {
   /* ══════════════════════════════════════════════════════════════
      TABS
   ══════════════════════════════════════════════════════════════ */
-  let activePassionId = null;
-  let showingNew      = false;
+  let activePassionId = pas().activePassionId || null;
+  // Honor "+ Add Interest" click from the sidebar
+  let showingNew      = Boolean(window.__onyxraShowNewPassion);
+  if (window.__onyxraShowNewPassion) {
+    window.__onyxraShowNewPassion = false;
+    activePassionId = null;
+  }
 
   function buildPassionTabs() {
     const tabs = [
@@ -1441,6 +1446,11 @@ window.registerPage('passions', function initPassions() {
     setEl('drawerProfileName', name);
     setEl('navProfileAvatar', initials);
     setEl('navProfileName', name);
+  }
+
+  // Render dynamic nav (Business/Interests sub-items) now that STATE is loaded
+  if (typeof window.renderDynamicNav === 'function') {
+    window.renderDynamicNav();
   }
 
   const hash  = window.location.hash.replace('#', '');

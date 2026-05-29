@@ -41,8 +41,13 @@ window.registerPage('business', function initBusiness() {
   /* ══════════════════════════════════════════════════════════════
      VENTURE TABS — rebuilt whenever ventures change
   ══════════════════════════════════════════════════════════════ */
-  let activeVentureId = null;
-  let showingNew      = false;
+  let activeVentureId = biz().activeVentureId || null;
+  // Honor "+ Add Business" click from the sidebar
+  let showingNew      = Boolean(window.__onyxraShowNewVenture);
+  if (window.__onyxraShowNewVenture) {
+    window.__onyxraShowNewVenture = false;
+    activeVentureId = null;
+  }
 
   function buildVentureTabs() {
     const tabs = [

@@ -81,11 +81,14 @@ function navigateTo(page) {
 
   /* Sync profile drawer active state */
   document.querySelectorAll('.drawer-nav-item').forEach(n => n.classList.remove('active'));
-  const drawerItem = document.querySelector(`.drawer-nav-item[data-page="${page}"]`);
-  if (drawerItem) drawerItem.classList.add('active');
+  // Add active to BOTH the main drawer item AND any nav-sub-item that's open
+  document.querySelectorAll(`.drawer-nav-item[data-page="${page}"]:not(.nav-sub-item)`).forEach(el => el.classList.add('active'));
 
   /* Update the category tabs hint at the top of mobile pages */
   if (typeof updateCategoryHint === 'function') updateCategoryHint(page);
+
+  /* Re-sync dynamic nav (Business / Interests) sub-item active state */
+  if (typeof syncDynamicNavActive === 'function') syncDynamicNavActive();
 
   /* Update URL hash (no page reload) */
   history.replaceState(null, '', '#' + page);
@@ -119,11 +122,10 @@ window.addEventListener('hashchange', () => {
 const PAGE_CATEGORIES = {
   workout:      { category: 'Health', siblings: ['workout', 'nutrition'] },
   nutrition:    { category: 'Health', siblings: ['workout', 'nutrition'] },
-  business:     { category: 'Wealth', siblings: ['business', 'wealth'] },
-  wealth:       { category: 'Wealth', siblings: ['business', 'wealth'] },
   relationship: { category: 'People', siblings: ['relationship', 'family', 'friends'] },
   family:       { category: 'People', siblings: ['relationship', 'family', 'friends'] },
   friends:      { category: 'People', siblings: ['relationship', 'family', 'friends'] },
+  // Wealth / Business / Interests: dynamic or single-page, no sibling-swipe.
 };
 
 function getCurrentPage() {
@@ -146,6 +148,114 @@ function navigateCategorySibling(direction /* 'next' | 'prev' */) {
   navigateTo(sibs[newIdx]);
   return true;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   DYNAMIC NAV — render Business + Interests sub-items from STATE.
+   Called whenever ventures/passions change.
+═══════════════════════════════════════════════════════════════════ */
+function _navEscape(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+window.renderDynamicNav = function renderDynamicNav() {
+  if (!window.STATE?.data) return;
+
+  const ventures = window.STATE.data?.business?.ventures || [];
+  const passions = window.STATE.data?.passions?.passions || [];
+
+  function fill(container, items, page, dataKey, defaultIcon, isDrawer) {
+    if (!container) return;
+    const itemClass = isDrawer ? 'drawer-nav-item nav-sub-item' : 'nav-item nav-sub-item';
+    const iconClass = isDrawer ? 'drawer-nav-icon' : 'nav-icon';
+
+    container.innerHTML = items.map(item => {
+      const icon  = _navEscape(item.icon || defaultIcon);
+      const name  = _navEscape(item.name || 'Untitled');
+      const idVal = _navEscape(item.id);
+      const labelHtml = isDrawer
+        ? `<span>${name}</span>`
+        : `<span class="nav-label">${name}</span>`;
+      return `
+        <a class="${itemClass}" data-page="${page}" data-${dataKey}="${idVal}" href="#${page}">
+          <span class="${iconClass}">${icon}</span>${labelHtml}
+        </a>`;
+    }).join('');
+
+    container.querySelectorAll(`[data-${dataKey}]`).forEach(el => {
+      el.addEventListener('click', e => {
+        e.preventDefault();
+        const id = el.getAttribute(`data-${dataKey}`);
+        navigateToSubPage(page, id);
+      });
+    });
+  }
+
+  fill(document.getElementById('navBusinessItems'),     ventures, 'business', 'venture-id', '🚀', false);
+  fill(document.getElementById('drawerBusinessItems'),  ventures, 'business', 'venture-id', '🚀', true);
+  fill(document.getElementById('navInterestsItems'),    passions, 'passions', 'passion-id', '✦', false);
+  fill(document.getElementById('drawerInterestsItems'), passions, 'passions', 'passion-id', '✦', true);
+
+  // Re-apply active state for the current page after rebuild
+  syncDynamicNavActive();
+};
+
+function syncDynamicNavActive() {
+  const cur = getCurrentPage();
+  const activeVid = window.STATE?.data?.business?.activeVentureId;
+  const activePid = window.STATE?.data?.passions?.activePassionId;
+
+  document.querySelectorAll('.nav-sub-item').forEach(el => {
+    const isBiz = el.dataset.page === 'business';
+    const isPas = el.dataset.page === 'passions';
+    const matchPage = el.dataset.page === cur;
+    const matchSub = (isBiz && el.dataset.ventureId === activeVid)
+                  || (isPas && el.dataset.passionId === activePid);
+    el.classList.toggle('active', matchPage && matchSub);
+  });
+
+  // Parent nav-item without sub-id should not be active when a sub is active
+  document.querySelectorAll(`.nav-item[data-page="${cur}"]:not(.nav-sub-item):not(.nav-add-sub)`).forEach(el => {
+    if (cur === 'business' && activeVid) el.classList.remove('active');
+    if (cur === 'passions' && activePid) el.classList.remove('active');
+  });
+}
+
+/** Navigate to a page and switch to a specific sub-record (venture/passion).
+ *  Force re-init the page so it re-reads STATE and renders the new active item. */
+function navigateToSubPage(page, subId) {
+  if (page === 'business') {
+    window.STATE.data.business.activeVentureId = subId;
+    window.STATE.save();
+  } else if (page === 'passions') {
+    window.STATE.data.passions.activePassionId = subId;
+    window.STATE.save();
+  }
+  // Force re-init to pick up the new active sub-record
+  INITIALISED[page] = false;
+  navigateTo(page);
+}
+
+/* "+ Add Business" / "+ Add Interest" → navigate to page and show new-form */
+function setupNavAddButtons() {
+  const wire = (id, page, flagName) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      window[flagName] = true;
+      INITIALISED[page] = false;
+      navigateTo(page);
+    });
+  };
+  wire('navAddBusinessBtn',   'business', '__onyxraShowNewVenture');
+  wire('drawerAddBusinessBtn','business', '__onyxraShowNewVenture');
+  wire('navAddInterestBtn',   'passions', '__onyxraShowNewPassion');
+  wire('drawerAddInterestBtn','passions', '__onyxraShowNewPassion');
+}
+// Run setup once DOM has the buttons
+setupNavAddButtons();
+
 
 /* Category tabs indicator at the top of each swipe-capable page.
    On mobile: small segmented control showing sibling pages.
