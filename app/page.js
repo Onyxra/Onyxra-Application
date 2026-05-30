@@ -39,9 +39,8 @@ export default function Home() {
         <div className="topbar-wordmark">
           <span id="topbarPageName" className="topbar-page-name">Dashboard</span>
         </div>
-        <button className="topbar-btn topbar-notif-btn" id="notifBtn" aria-label="Notifications">
-          <span className="topbar-notif-icon">🔔</span>
-          <span className="notif-badge" id="notifBadge">2</span>
+        <button className="topbar-btn topbar-day-btn" id="dayPulseBtn" aria-label="How's my day going">
+          <span className="topbar-day-ring" id="dayPulseRing"><span className="topbar-day-pct" id="dayPulsePct">0%</span></span>
         </button>
       </div>
 
@@ -116,13 +115,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ══ NOTIFICATIONS PANEL ══ */}
-      <div className="notif-panel" id="notifPanel">
-        <div className="notif-panel-header">
-          <span className="notif-panel-title">Notifications</span>
-          <button className="notif-mark-read" id="notifMarkRead">Mark all read</button>
-        </div>
-        <div className="notif-list" id="notifList"></div>
+      {/* ══ DAY PULSE PANEL — "how's my day going" (replaces notifications) ══ */}
+      <div className="day-panel" id="dayPanel">
+        <div className="day-panel-inner" id="dayPanelInner"></div>
       </div>
 
       {/* ══ SIDEBAR NAV ══ */}

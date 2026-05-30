@@ -65,12 +65,28 @@ Numbers must be raw (182 not "182 lbs"). Put MULTIPLE actions in the one array
 when the user says several things at once. Match names/tasks to what already
 exists in the snapshot. If you can't map a request to an action, just answer.`;
 
-function buildSystemPrompt(profile, snapshot, capture) {
+const PAGE_HINT = {
+  workout: 'the Workout screen — default to log_workout / tick_habit',
+  nutrition: 'the Meal Plan screen — default to nutrition/meal logging',
+  wealth: 'the Investments screen — default to log_networth',
+  relationship: 'the Relationship screen — default to add_relationship_update / add_gift_idea',
+  family: 'the Family screen — default to add_family_update',
+  friends: 'the Friends screen — default to add_friend_update',
+  business: 'the Business screen',
+  passions: 'the Interests screen',
+  journal: 'the Journal screen — default to add_journal / set_mood',
+  insights: 'the Insights screen',
+};
+
+function buildSystemPrompt(profile, snapshot, capture, page) {
   const name = profile?.display_name || snapshot?.profile?.name || 'there';
+  const pageNote = (capture && page && PAGE_HINT[page])
+    ? `\nThe user is currently on ${PAGE_HINT[page]}. Bias logging toward that area, but still honor explicit requests.`
+    : '';
   const captureNote = capture ? `
 
 CAPTURE MODE: this came from the quick-capture bar. Be terse — a single short
-confirmation sentence, then the action block. Default to taking an action.` : '';
+confirmation sentence, then the action block. Default to taking an action.${pageNote}` : '';
   return `You are Onyxra — ${name}'s personal AI life assistant.
 
 Their Life OS is organized into five main categories:
@@ -112,7 +128,7 @@ export async function POST(request) {
       );
     }
 
-    const { messages = [], snapshot = {}, model, capture = false } = await request.json();
+    const { messages = [], snapshot = {}, model, capture = false, page = null } = await request.json();
 
     // Single-user mode: auth is OPTIONAL. If a Supabase session happens to
     // exist we enrich the prompt with the stored profile, but we never block
@@ -129,7 +145,7 @@ export async function POST(request) {
       // No auth / no Supabase — fine. Chat still works from the snapshot.
     }
 
-    const systemPrompt = buildSystemPrompt(profile, snapshot, capture);
+    const systemPrompt = buildSystemPrompt(profile, snapshot, capture, page);
 
     const upstream = await fetch(`${gatewayUrl}/chat/completions`, {
       method: 'POST',

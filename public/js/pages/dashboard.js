@@ -108,9 +108,11 @@ window.registerPage('dashboard', function initDashboard() {
      THE ORB — vanilla canvas, JARVIS-style talking AI
      Returns { setMood, speak, destroy }
   ───────────────────────────────────────────────────────────── */
-  function createDashOrb(canvas) {
+  function createDashOrb(canvas, interEl) {
     const ctx = canvas.getContext('2d');
-    if (!ctx) return { setMood() {}, speak() {}, destroy() {} };
+    if (!ctx) return { setMood() {}, speak() {}, kick() {}, destroy() {} };
+    const hit = interEl || canvas;             // element that receives pointer events
+    const pageEl = document.getElementById('page-dashboard');
 
     const reduce = window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -173,8 +175,9 @@ window.registerPage('dashboard', function initDashboard() {
     }
 
     function draw(now) {
-      // Skip work entirely when the dashboard page is hidden (display:none).
-      if (canvas.offsetParent === null) { raf = requestAnimationFrame(draw); return; }
+      // Skip work entirely when the dashboard isn't the active page. (A fixed
+      // canvas has no offsetParent, so we check the page's active state instead.)
+      if (pageEl && !pageEl.classList.contains('active')) { raf = requestAnimationFrame(draw); return; }
 
       t = now * 0.001;
 
@@ -306,6 +309,8 @@ window.registerPage('dashboard', function initDashboard() {
     function onDown(e) {
       setPtr(e.clientX, e.clientY);
       ptr.tAct = 1;
+      // Lean toward the touch, but don't ripple when interacting with a control.
+      if (e.target && e.target.closest && e.target.closest('button, a, input, textarea, select, .ai-card, .onyx-card, .ai-chat-form, .ai-thread')) return;
       const rect = canvas.getBoundingClientRect();
       ripples.push({
         x: e.clientX - rect.left,
@@ -315,11 +320,11 @@ window.registerPage('dashboard', function initDashboard() {
     }
     function onUp(e) { if (e.pointerType !== 'mouse') ptr.tAct = 0; }
 
-    canvas.addEventListener('pointermove', onMove);
-    canvas.addEventListener('pointerdown', onDown);
-    canvas.addEventListener('pointerleave', onLeave);
-    canvas.addEventListener('pointerup', onUp);
-    canvas.addEventListener('pointercancel', onUp);
+    hit.addEventListener('pointermove', onMove);
+    hit.addEventListener('pointerdown', onDown);
+    hit.addEventListener('pointerleave', onLeave);
+    hit.addEventListener('pointerup', onUp);
+    hit.addEventListener('pointercancel', onUp);
 
     const ro = ('ResizeObserver' in window) ? new ResizeObserver(resize) : null;
     if (ro) ro.observe(canvas); else window.addEventListener('resize', resize);
@@ -335,11 +340,11 @@ window.registerPage('dashboard', function initDashboard() {
       destroy() {
         if (raf) cancelAnimationFrame(raf);
         if (ro) ro.disconnect(); else window.removeEventListener('resize', resize);
-        canvas.removeEventListener('pointermove', onMove);
-        canvas.removeEventListener('pointerdown', onDown);
-        canvas.removeEventListener('pointerleave', onLeave);
-        canvas.removeEventListener('pointerup', onUp);
-        canvas.removeEventListener('pointercancel', onUp);
+        hit.removeEventListener('pointermove', onMove);
+        hit.removeEventListener('pointerdown', onDown);
+        hit.removeEventListener('pointerleave', onLeave);
+        hit.removeEventListener('pointerup', onUp);
+        hit.removeEventListener('pointercancel', onUp);
       },
     };
   }
@@ -370,11 +375,13 @@ window.registerPage('dashboard', function initDashboard() {
 
   function render() {
     inner.innerHTML = `
+      <!-- Living AI orb — full-bleed background of the entire dashboard -->
+      <canvas class="ai-orb-bg" id="dashOrb" aria-hidden="true"></canvas>
+
       <div class="ai-dash">
 
-        <!-- Talking AI orb -->
-        <div class="ai-orb-stage">
-          <canvas class="ai-orb-canvas" id="dashOrb" aria-hidden="true"></canvas>
+        <!-- Orb hero — the caption floats over the glowing orb -->
+        <div class="ai-orb-hero">
           <div class="ai-orb-caption">
             <div class="ai-orb-greeting">${greeting}, ${escapeHtml(userName)}</div>
             <div class="ai-orb-status" id="aiOrbStatus">I'm listening. Ask me anything.</div>
@@ -438,7 +445,7 @@ window.registerPage('dashboard', function initDashboard() {
   function initOrb() {
     if (window.__dashOrb) { try { window.__dashOrb.destroy(); } catch (e) {} }
     const canvas = document.getElementById('dashOrb');
-    orb = canvas ? createDashOrb(canvas) : null;
+    orb = canvas ? createDashOrb(canvas, document.getElementById('page-dashboard')) : null;
     window.__dashOrb = orb;
   }
 

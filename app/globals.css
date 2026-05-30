@@ -3929,25 +3929,32 @@ select.form-input option { background: #141920; color: var(--text); }
    TALKING-ORB DASHBOARD — the dashboard IS the AI
 ════════════════════════════════════════════════════════════════ */
 .ai-dash {
+  position: relative;
+  z-index: 1;
   max-width: 720px;
   margin: 0 auto;
   padding: 0 4px 80px;
 }
-.ai-orb-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 0 4px;
-}
-.ai-orb-canvas {
-  display: block;
-  width: clamp(220px, 56vw, 340px);
-  height: clamp(220px, 56vw, 340px);
-  aspect-ratio: 1 / 1;
+
+/* Full-bleed living orb — the AI IS the dashboard background */
+.ai-orb-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;        /* #page-dashboard drives the pointer reactivity */
   touch-action: none;
-  cursor: pointer;
-  filter: drop-shadow(0 12px 44px rgba(79,140,247,0.35));
+}
+
+/* Hero spacer — lets the orb breathe; the caption floats at its base */
+.ai-orb-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: clamp(300px, 46vh, 460px);
+  padding-bottom: 4px;
 }
 .ai-orb-caption {
   text-align: center;
@@ -3955,18 +3962,20 @@ select.form-input option { background: #141920; color: var(--text); }
 }
 .ai-orb-greeting {
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(22px, 5.5vw, 30px);
+  font-size: clamp(24px, 6vw, 34px);
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.5px;
   line-height: 1.1;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.6);
 }
 .ai-orb-status {
   font-size: 13px;
-  color: rgba(255,255,255,0.45);
-  margin-top: 5px;
+  color: rgba(255,236,210,0.7);
+  margin-top: 6px;
   min-height: 18px;
   transition: color 0.2s;
+  text-shadow: 0 1px 10px rgba(0,0,0,0.8);
 }
 .ai-orb-status.thinking { color: #ffb340; }
 
@@ -5432,4 +5441,103 @@ body.onyx-gate-lock { overflow: hidden !important; }
 .ai-connect-person:last-child { border-bottom: none; }
 .ai-connect-person b { font-size: 13.5px; color: #fff; }
 .ai-connect-person span { font-size: 12.5px; color: var(--muted); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   30. GLASSY DASHBOARD — panels float as frosted glass over the orb
+════════════════════════════════════════════════════════════════ */
+.ai-dash .onyx-card,
+.ai-dash .ai-card {
+  background: linear-gradient(180deg, rgba(26,21,13,0.72), rgba(17,13,8,0.8));
+  border-color: rgba(255,176,46,0.16);
+  backdrop-filter: blur(11px) saturate(1.1);
+  -webkit-backdrop-filter: blur(11px) saturate(1.1);
+}
+.ai-dash .ai-suggest-btn,
+.ai-dash .ai-card-cta {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+/* A soft scrim so the orb's bright core never washes out the caption */
+.ai-orb-hero::after {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: -10px; transform: translateX(-50%);
+  width: min(90%, 520px); height: 120px;
+  background: radial-gradient(ellipse at center, rgba(11,9,7,0.55), rgba(11,9,7,0));
+  pointer-events: none; z-index: -1;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   31. DAY PULSE — "how's my day going" (replaces notifications)
+════════════════════════════════════════════════════════════════ */
+.topbar-day-btn { display: flex; align-items: center; justify-content: center; }
+.topbar-day-ring, .page-day-ring {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), rgba(255,255,255,0.12) 0);
+}
+.topbar-day-ring::before, .page-day-ring::before {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--bg2);
+}
+.topbar-day-pct, .page-day-pct {
+  position: relative; z-index: 1;
+  font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 9px; color: #fff;
+}
+.page-day-btn { background: none; border: none; cursor: pointer; padding: 2px; }
+.page-day-ring::before { background: var(--card); }
+
+.day-panel {
+  position: fixed; top: 60px; right: 12px; z-index: 1400;
+  width: min(304px, calc(100vw - 24px));
+  background: rgba(20,16,11,0.97);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,176,46,0.22); border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  opacity: 0; transform: translateY(-10px) scale(0.98); pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(.22,1,.36,1);
+}
+.day-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+.day-panel-inner { padding: 16px; }
+.day-head { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 13px; }
+.day-overall { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.day-ring {
+  width: 72px; height: 72px; border-radius: 50%; flex: 0 0 auto;
+  display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), rgba(255,255,255,0.08) 0);
+}
+.day-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: #141009; }
+.day-ring span { position: relative; z-index: 1; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 22px; color: #fff; }
+.day-ring span i { font-size: 12px; color: var(--muted); font-style: normal; }
+.day-meta { flex: 1; min-width: 0; }
+.day-streak { font-family: 'Rajdhani', sans-serif; color: var(--muted); font-size: 13px; }
+.day-streak b { font-size: 20px; color: #fff; }
+.day-flame { font-size: 15px; }
+.day-mood { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.day-rings3 { display: flex; gap: 8px; margin-bottom: 12px; }
+.day-r { flex: 1; text-align: center; padding: 8px 4px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
+.day-r span { display: block; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.day-r b { font-size: 15px; color: #fff; font-family: 'Rajdhani', sans-serif; }
+.day-r.r-focus b { color: #ffb340; }
+.day-r.r-body b { color: #ff8a4a; }
+.day-r.r-connect b { color: #ff7a4d; }
+.day-prio { font-size: 13px; color: var(--text); padding: 8px 11px; background: rgba(255,176,46,0.1); border: 1px solid rgba(255,176,46,0.2); border-radius: 9px; margin-bottom: 10px; }
+.day-tasks { font-size: 12.5px; color: var(--muted); margin-bottom: 13px; }
+.day-cta {
+  width: 100%; padding: 10px; border-radius: 11px; cursor: pointer;
+  background: linear-gradient(135deg, rgba(255,176,46,0.18), rgba(224,123,21,0.22));
+  border: 1px solid rgba(255,176,46,0.32); color: #fff;
+  font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13.5px; letter-spacing: 0.3px;
+}
+.day-cta:active { transform: scale(0.98); }
+
+/* Quick-capture page-context chip — shows the AI knows where you are */
+.onyx-sheet-ctx {
+  align-self: flex-start; margin: 0 0 11px;
+  padding: 5px 11px; border-radius: 999px;
+  background: rgba(255,176,46,0.12); border: 1px solid rgba(255,176,46,0.28);
+  color: #ffce8a; font-size: 11.5px; font-weight: 600;
+}
+.onyx-sheet-ctx:empty { display: none; }
 

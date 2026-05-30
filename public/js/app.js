@@ -398,71 +398,30 @@ function updateCategoryHint(page) {
   const drawerBackdrop = document.getElementById('drawerBackdrop');
   const profileDrawer  = document.getElementById('profileDrawer');
   const drawerClose    = document.getElementById('drawerClose');
-  const notifBtn       = document.getElementById('notifBtn');      // mobile topbar bell
-  const notifPanel     = document.getElementById('notifPanel');
-  const notifBadge     = document.getElementById('notifBadge');    // mobile topbar badge
-  const notifMarkRead  = document.getElementById('notifMarkRead');
-  const notifList      = document.getElementById('notifList');
+  const dayPulseBtn    = document.getElementById('dayPulseBtn');   // mobile topbar day-pulse
+  const dayPanel       = document.getElementById('dayPanel');
+  const dayPanelInner  = document.getElementById('dayPanelInner');
 
   if (!hamburgerBtn) return; // not in DOM (shouldn't happen)
 
-  /* ── Notifications data ── */
-  const NOTIFS = [
-    { icon: '🏋️', title: 'Workout Reminder',  text: 'Today is your Upper day — stay on schedule.', time: 'Now',       unread: true  },
-    { icon: '🎯', title: 'Weekly Check-in',    text: 'Log your body weight and BF% to track progress.', time: '2h ago',   unread: true  },
-    { icon: '🍽️', title: 'Nutrition',          text: 'Select your meals for today to hit your macros.', time: '5h ago',   unread: false },
-    { icon: '⭐', title: 'North Star',         text: '$50K MRR · 200 lbs · 15% BF — keep your eyes on it.', time: 'Yesterday', unread: false },
-  ];
-
-  let unreadCount = NOTIFS.filter(n => n.unread).length;
-
-  function renderNotifs() {
-    notifList.innerHTML = NOTIFS.map(n => `
-      <div class="notif-item${n.unread ? ' unread' : ''}">
-        <div class="notif-item-icon">${n.icon}</div>
-        <div class="notif-item-body">
-          <div class="notif-item-title">${n.title}</div>
-          <div class="notif-item-text">${n.text}</div>
-          <div class="notif-item-time">${n.time}</div>
-        </div>
-        ${n.unread ? '<div class="notif-unread-dot"></div>' : ''}
-      </div>`).join('');
-  }
-
-  function updateBadge() {
-    const val     = unreadCount > 0 ? String(unreadCount) : '';
-    const display = unreadCount > 0 ? 'flex' : 'none';
-    // Mobile topbar badge
-    notifBadge.textContent   = val;
-    notifBadge.style.display = display;
-    // All in-header page notif badges (one per page, rendered by buildPageHeader)
-    document.querySelectorAll('.page-notif-badge').forEach(b => {
-      b.textContent   = val;
-      b.style.display = display;
-    });
-  }
-
-  renderNotifs();
-  updateBadge();
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const MOOD_EMO = { 1: '😞', 2: '😕', 3: '😐', 4: '🙂', 5: '🤩' };
 
   /* ── Drawer open / close ── */
   function openDrawer() {
     profileDrawer.classList.add('open');
     drawerBackdrop.classList.add('open');
-    closeNotifPanel();
+    closeDayPanel();
   }
-
   function closeDrawer() {
     profileDrawer.classList.remove('open');
     drawerBackdrop.classList.remove('open');
   }
-
   hamburgerBtn.addEventListener('click', () =>
     profileDrawer.classList.contains('open') ? closeDrawer() : openDrawer());
   drawerClose.addEventListener('click', closeDrawer);
   drawerBackdrop.addEventListener('click', closeDrawer);
 
-  /* ── Drawer nav items ── */
   document.querySelectorAll('.drawer-nav-item').forEach(item => {
     item.addEventListener('click', e => {
       e.preventDefault();
@@ -471,47 +430,81 @@ function updateCategoryHint(page) {
     });
   });
 
-  /* ── Notifications panel open / close ── */
-  function openNotifPanel(triggerBtn) {
+  /* ── Day Pulse — a glanceable "how's my day going" (this app has no
+       notifications; we glance at the full picture instead) ── */
+  function dayData() {
+    const S = window.STATE;
+    if (!S || !S.data || typeof S.computeToday !== 'function') return null;  // data loads async
+    const t = S.computeToday();
+    const ds = S.data.dashboard || {};
+    return { t, pct: Math.round((t.overall || 0) * 100), tasksLeft: (ds.tasks || []).filter(x => !x.done).length, priority: ds.weeklyTopPriority || '' };
+  }
+
+  function updateDayPulse() {
+    const d = dayData();
+    const pct = d ? d.pct : 0;
+    document.querySelectorAll('#dayPulsePct, [data-daypct]').forEach(el => { el.textContent = pct + '%'; });
+    document.querySelectorAll('#dayPulseRing, .page-day-ring').forEach(el => { el.style.setProperty('--p', pct); });
+  }
+
+  function renderDayPanel() {
+    const d = dayData();
+    if (!d) { dayPanelInner.innerHTML = '<div class="day-head">Your day</div><div class="day-tasks">Getting your picture…</div>'; return; }
+    const t = d.t;
+    dayPanelInner.innerHTML = `
+      <div class="day-head">How your day's going</div>
+      <div class="day-overall">
+        <div class="day-ring" style="--p:${d.pct}"><span>${d.pct}<i>%</i></span></div>
+        <div class="day-meta">
+          <div class="day-streak"><span class="day-flame">🔥</span><b>${t.streak}</b> day${t.streak === 1 ? '' : 's'}</div>
+          <div class="day-mood">${t.moodToday ? ('Feeling ' + MOOD_EMO[t.moodToday]) : 'No mood logged yet'}</div>
+        </div>
+      </div>
+      <div class="day-rings3">
+        <div class="day-r r-focus"><span>Focus</span><b>${Math.round(t.focus.frac * 100)}%</b></div>
+        <div class="day-r r-body"><span>Body</span><b>${Math.round(t.body.frac * 100)}%</b></div>
+        <div class="day-r r-connect"><span>Connect</span><b>${Math.round(t.connect.frac * 100)}%</b></div>
+      </div>
+      ${d.priority ? `<div class="day-prio">⭐ ${esc(d.priority)}</div>` : ''}
+      <div class="day-tasks">${d.tasksLeft ? (d.tasksLeft + ' task' + (d.tasksLeft === 1 ? '' : 's') + ' still open') : 'All tasks clear ✓'}</div>
+      <button class="day-cta" id="dayBriefCta" type="button">☀️ Full briefing on the orb</button>`;
+    const cta = document.getElementById('dayBriefCta');
+    if (cta) cta.addEventListener('click', () => { closeDayPanel(); navigateTo('dashboard'); });
+  }
+
+  function openDayPanel(triggerBtn) {
     if (triggerBtn) {
       const rect = triggerBtn.getBoundingClientRect();
-      notifPanel.style.top   = (rect.bottom + 8) + 'px';
-      notifPanel.style.right = (window.innerWidth - rect.right) + 'px';
-      notifPanel.style.left  = 'auto';
+      dayPanel.style.top   = (rect.bottom + 8) + 'px';
+      dayPanel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+      dayPanel.style.left  = 'auto';
     }
-    notifPanel.classList.add('open');
+    renderDayPanel();
+    dayPanel.classList.add('open');
     closeDrawer();
   }
+  function closeDayPanel() { dayPanel.classList.remove('open'); }
 
-  function closeNotifPanel() {
-    notifPanel.classList.remove('open');
-  }
-
-  // Mobile topbar bell
-  notifBtn.addEventListener('click', e => {
+  if (dayPulseBtn) dayPulseBtn.addEventListener('click', e => {
     e.stopPropagation();
-    notifPanel.classList.contains('open') ? closeNotifPanel() : openNotifPanel(notifBtn);
+    dayPanel.classList.contains('open') ? closeDayPanel() : openDayPanel(dayPulseBtn);
   });
 
-  // Desktop in-header bells (one per page) — event delegation
+  // Per-page header day buttons (event delegation) + outside-click close
   document.addEventListener('click', e => {
-    const btn = e.target.closest('.page-notif-btn');
+    const btn = e.target.closest('[data-daypulse]');
     if (btn) {
       e.stopPropagation();
-      notifPanel.classList.contains('open') ? closeNotifPanel() : openNotifPanel(btn);
+      dayPanel.classList.contains('open') ? closeDayPanel() : openDayPanel(btn);
       return;
     }
-    if (!notifPanel.contains(e.target) && e.target !== notifBtn) {
-      closeNotifPanel();
-    }
+    if (!dayPanel.contains(e.target) && !e.target.closest('#dayPulseBtn')) closeDayPanel();
   });
 
-  notifMarkRead.addEventListener('click', () => {
-    NOTIFS.forEach(n => n.unread = false);
-    unreadCount = 0;
-    updateBadge();
-    renderNotifs();
-  });
+  // Keep the pulse % fresh as the day progresses / state changes.
+  updateDayPulse();
+  window.addEventListener('onyxra:state-changed', () => { updateDayPulse(); if (dayPanel.classList.contains('open')) renderDayPanel(); });
+  window.addEventListener('onyxra:navigate', updateDayPulse);
 })();
 
 
@@ -535,9 +528,8 @@ window.buildPageHeader = function(eyebrow, titleMain, titleAccent, subtitle, con
       <div class="page-header-right">
         ${controlsHTML ? `<div class="page-header-controls">${controlsHTML}</div>` : ''}
         <div class="page-tabs-desktop"></div>
-        <button class="page-notif-btn" aria-label="Notifications">
-          <span class="page-notif-icon">🔔</span>
-          <span class="page-notif-badge"></span>
+        <button class="page-day-btn" type="button" data-daypulse aria-label="How's my day going">
+          <span class="page-day-ring"><span class="page-day-pct" data-daypct>0%</span></span>
         </button>
       </div>
     </div>
@@ -1081,9 +1073,10 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
         <div class="onyx-sheet-handle"></div>
         <div class="onyx-sheet-head">
           <span class="onyx-sheet-spark">✦</span>
-          <span class="onyx-sheet-title">Capture anything</span>
+          <span class="onyx-sheet-title">Talk to Onyxra</span>
           <button class="onyx-sheet-x" type="button" aria-label="Close">✕</button>
         </div>
+        <div class="onyx-sheet-ctx" id="onyxCaptureCtx"></div>
         <div class="onyx-sheet-inputwrap">
           <textarea id="onyxCaptureInput" class="onyx-sheet-input" rows="2"
             placeholder="Log a task, weight, mood, a note about someone… or just ask."></textarea>
@@ -1138,8 +1131,33 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
     }
   }
 
+  // Page-aware framing: the AI is told where you are so it logs to the right place.
+  const PAGE_CTX = {
+    workout:      { ph: "Log today's workout, a set, or how it felt…", ctx: 'Workout' },
+    nutrition:    { ph: 'Log a meal, your macros, or what you ate…',   ctx: 'Meal Plan' },
+    wealth:       { ph: 'Log net worth, an account, or a money note…', ctx: 'Investments' },
+    relationship:{ ph: 'Note an update, a gift idea, or a date…',      ctx: 'Relationship' },
+    family:       { ph: 'Note an update about family…',                ctx: 'Family' },
+    friends:      { ph: 'Note an update about a friend…',              ctx: 'Friends' },
+    business:     { ph: 'Log progress, MRR, or a venture note…',       ctx: 'Business' },
+    passions:     { ph: 'Log progress on an interest or hobby…',       ctx: 'Interests' },
+    journal:      { ph: 'Write a reflection or log your mood…',        ctx: 'Journal' },
+    insights:     { ph: 'Ask about a trend, or log a metric…',         ctx: 'Insights' },
+  };
+  function curPage() { return (typeof getCurrentPage === 'function') ? getCurrentPage() : 'dashboard'; }
+  function applyPageContext() {
+    const c = PAGE_CTX[curPage()];
+    const ctxEl = sheetEl && sheetEl.querySelector('#onyxCaptureCtx');
+    if (inputEl) inputEl.placeholder = c ? c.ph : 'Log a task, weight, mood, a note… or just ask.';
+    if (ctxEl) {
+      if (c) { ctxEl.textContent = '📍 On ' + c.ctx + " — I'll log it here"; ctxEl.style.display = ''; }
+      else { ctxEl.textContent = ''; ctxEl.style.display = 'none'; }
+    }
+  }
+
   function openCapture(prefill) {
     ensureUI();
+    applyPageContext();
     document.body.classList.add('onyx-sheet-open');
     sheetEl.classList.add('open');
     const result = sheetEl.querySelector('#onyxCaptureResult');
@@ -1232,6 +1250,7 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
           messages: [{ role: 'user', content: text }],
           snapshot: window.buildOnyxraSnapshot ? window.buildOnyxraSnapshot() : {},
           capture: true,
+          page: curPage(),
         }),
       });
       if (!res.ok) {
