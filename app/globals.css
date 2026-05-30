@@ -3376,24 +3376,18 @@ select.form-input option { background: #141920; color: var(--text); }
   display: none;
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 54px;
+  /* Always reserve the safe-area (notch / Dynamic Island). viewport-fit=cover
+     is set, so env() is meaningful in browser mode too — not just standalone.
+     The bar's content stays centered in the bottom 54px (below the notch),
+     and the page content is offset to match (see .main-content margin-top). */
+  height: calc(54px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 8px 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   z-index: 400;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-}
-
-/* In PWA standalone mode extend topbar to cover notch/Dynamic Island */
-@media (display-mode: standalone) {
-  .mobile-topbar {
-    height: calc(54px + env(safe-area-inset-top, 0px));
-    align-items: flex-end;
-    padding-bottom: 6px;
-    padding-top: env(safe-area-inset-top, 0px);
-  }
 }
 
 .topbar-btn {
@@ -3707,8 +3701,9 @@ select.form-input option { background: #141920; color: var(--text); }
 @media (max-width: 1024px) {
   .mobile-topbar { display: flex; }
 
-  /* Base: 54px topbar, no safe-area in browser mode */
-  .main-content { margin-top: 54px; }
+  /* Clear the topbar including the safe-area (notch). viewport-fit=cover makes
+     env() meaningful in browser mode too, so this is applied in all modes. */
+  .main-content { margin-top: calc(54px + env(safe-area-inset-top, 0px)); }
 
   /* Settings only accessible via hamburger drawer on mobile/tablet — hide from sidebar */
   .nav-settings-item,
