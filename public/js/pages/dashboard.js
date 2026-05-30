@@ -161,6 +161,14 @@ window.registerPage('dashboard', function initDashboard() {
       ph: Math.random() * 6.283,
     }));
 
+    // Orbiting data-nodes — a constellation around the core (JARVIS-style)
+    const nodes = Array.from({ length: 10 }, (_, i) => ({
+      rr: 1.26 + (i % 3) * 0.24,
+      sp: (0.10 + (i % 4) * 0.05) * (i % 2 ? -1 : 1),
+      ph: (i / 10) * 6.283 + Math.random(),
+      sz: 1.5 + Math.random() * 1.8,
+    }));
+
     function resize() {
       // The orb is a full-bleed fixed background, so it always tracks the
       // viewport. We set its CSS box explicitly (inline px) so no stylesheet /
@@ -250,67 +258,151 @@ window.registerPage('dashboard', function initDashboard() {
       ctx.fillStyle = aura;
       ctx.beginPath(); ctx.arc(cx, cy, auraR, 0, 6.2832); ctx.fill();
 
-      /* 2 — rotating HUD arcs */
-      for (let i = 0; i < 3; i++) {
-        const rr = R * (1.42 + i * 0.17);
-        const rot = t * (0.22 + i * 0.14) * (i % 2 ? -1 : 1);
-        const span = 1.1 + i * 0.5;
+      /* 2 — precision HUD ring system (gauge ticks, segmented arcs, sweep) */
+      ctx.lineCap = 'round';
+      const sweep = t * 0.6;
+      const squash = 1 - Math.abs(ptr.y) * 0.10 * ptr.act;   // subtle 3D tilt toward pointer
+
+      // a) gauge tick ring
+      const tickR = R * 1.6;
+      for (let i = 0; i < 72; i++) {
+        const a = (i / 72) * 6.2832 + t * 0.04;
+        const long = (i % 6 === 0);
+        const ca = Math.cos(a), sa = Math.sin(a) * squash;
+        const r1 = tickR + (long ? 10 : 5);
         ctx.beginPath();
-        ctx.arc(cx, cy, rr, rot, rot + span);
-        const c = i === 1 ? PK : CY;
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.10 + energy * 0.12})`;
-        ctx.lineWidth = 1.5;
+        ctx.moveTo(cx + ca * tickR, cy + sa * tickR);
+        ctx.lineTo(cx + ca * r1, cy + sa * r1);
+        ctx.strokeStyle = `rgba(255,196,90,${(long ? 0.22 : 0.10) + energy * 0.22})`;
+        ctx.lineWidth = long ? 1.6 : 1;
         ctx.stroke();
       }
 
-      /* 3 — voice waveform bars */
+      // b) faint guide rings (squashed for depth)
+      for (const rf of [1.30, 1.84, 2.12]) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, R * rf, R * rf * squash, 0, 0, 6.2832);
+        ctx.strokeStyle = `rgba(255,196,90,${0.05 + energy * 0.06})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // c) bright rotating segmented arcs
+      for (let i = 0; i < 4; i++) {
+        const rr = R * (1.38 + i * 0.2);
+        const rot = sweep * (0.5 + i * 0.35) * (i % 2 ? -1 : 1);
+        const segs = 3 + i;
+        const c = i === 1 ? PK : (i === 3 ? PU : CY);
+        for (let s = 0; s < segs; s++) {
+          const a0 = rot + (s / segs) * 6.2832;
+          ctx.beginPath();
+          ctx.arc(cx, cy, rr, a0, a0 + (0.18 + 0.10 * Math.sin(t + s + i)));
+          ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.18 + energy * 0.4})`;
+          ctx.lineWidth = i === 0 ? 2.4 : 1.5;
+          ctx.stroke();
+        }
+      }
+
+      // d) radar sweep wedge
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R * 2.0, sweep, sweep + 0.55);
+      ctx.closePath();
+      const swg = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.0);
+      swg.addColorStop(0, 'rgba(255,196,90,0)');
+      swg.addColorStop(1, `rgba(255,196,90,${0.05 + energy * 0.09})`);
+      ctx.fillStyle = swg;
+      ctx.fill();
+
+      // e) orbiting data-nodes + constellation links
+      const npos = nodes.map(n => {
+        const a = n.ph + t * n.sp;
+        const rr = R * n.rr;
+        return { x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * squash, sz: n.sz };
+      });
+      for (let i = 0; i < npos.length; i++) {
+        for (let j = i + 1; j < npos.length; j++) {
+          const d = Math.hypot(npos[i].x - npos[j].x, npos[i].y - npos[j].y);
+          if (d < R * 1.05) {
+            ctx.beginPath();
+            ctx.moveTo(npos[i].x, npos[i].y);
+            ctx.lineTo(npos[j].x, npos[j].y);
+            ctx.strokeStyle = `rgba(255,196,90,${0.12 * (1 - d / (R * 1.05)) * (0.5 + energy)})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+      for (const p of npos) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.sz, 0, 6.2832);
+        ctx.fillStyle = `rgba(255,210,120,${0.45 + energy * 0.45})`;
+        ctx.fill();
+      }
+
+      /* 3 — circular voice waveform (reacts as it speaks) */
       for (let j = 0; j < BARS; j++) {
         const a = (j / BARS) * 6.2832;
         const rad = radiusAt(a, pAng, bulge);
         const n = Math.sin(t * 6 + seed[j] + a * 3) * 0.5 + 0.5;
-        const len = 5 + energy * 48 * (0.32 + 0.68 * n);
-        const r0 = rad + 7;
-        const r1 = r0 + len;
+        const len = 4 + energy * 52 * (0.30 + 0.70 * n);
+        const r0 = rad + 6;
         const ca = Math.cos(a), sa = Math.sin(a);
         const col = mix(CY, PU, 0.5 + 0.5 * Math.sin(a * 2 + t * 0.6));
         ctx.beginPath();
         ctx.moveTo(cx + ca * r0, cy + sa * r0);
-        ctx.lineTo(cx + ca * r1, cy + sa * r1);
-        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.22 + energy * 0.5})`;
+        ctx.lineTo(cx + ca * (r0 + len), cy + sa * (r0 + len));
+        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.20 + energy * 0.5})`;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      /* 4 — blob body */
+      /* 4 — molten body + faceted iris */
       ctx.globalCompositeOperation = 'source-over';
       ctx.beginPath();
       for (let i = 0; i <= N; i++) {
         const a = (i / N) * 6.2832;
         const r = radiusAt(a, pAng, bulge);
-        const x = cx + Math.cos(a) * r;
-        const y = cy + Math.sin(a) * r;
+        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      const body = ctx.createRadialGradient(cx - R * 0.32, cy - R * 0.32, R * 0.1, cx, cy, R * 1.25);
-      body.addColorStop(0,   'rgba(255,228,175,0.95)');
-      body.addColorStop(0.5, 'rgba(255,150,40,0.60)');
-      body.addColorStop(1,   'rgba(224,123,21,0.22)');
+      const body = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R * 1.2);
+      body.addColorStop(0,   'rgba(255,232,185,0.95)');
+      body.addColorStop(0.5, 'rgba(255,150,40,0.55)');
+      body.addColorStop(1,   'rgba(200,95,18,0.18)');
       ctx.fillStyle = body;
       ctx.fill();
-      ctx.strokeStyle = `rgba(255,222,165,${0.45 + energy * 0.35})`;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = `rgba(255,226,170,${0.4 + energy * 0.4})`;
+      ctx.lineWidth = 1.4;
       ctx.stroke();
 
-      /* 5 — inner breathing core */
+      // faceted iris petals around the rim
       ctx.globalCompositeOperation = 'lighter';
-      const coreR = R * (0.40 + energy * 0.18 + Math.sin(t * 2) * 0.02);
+      const irisRot = t * 0.25;
+      for (let i = 0; i < 12; i++) {
+        const a = irisRot + (i / 12) * 6.2832;
+        const a2 = a + (6.2832 / 12) * 0.6;
+        const ri = R * 0.52, ro = R * (0.82 + 0.05 * Math.sin(t * 3 + i));
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri);
+        ctx.lineTo(cx + Math.cos(a) * ro, cy + Math.sin(a) * ro);
+        ctx.lineTo(cx + Math.cos(a2) * ro, cy + Math.sin(a2) * ro);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255,${175 + (i % 3) * 18},85,${0.05 + energy * 0.10})`;
+        ctx.fill();
+      }
+
+      /* 5 — reactor core */
+      const coreR = R * (0.40 + energy * 0.20 + Math.sin(t * 2) * 0.02);
       const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
-      core.addColorStop(0,   'rgba(255,250,238,0.95)');
-      core.addColorStop(0.4, 'rgba(255,190,90,0.55)');
-      core.addColorStop(1,   'rgba(255,190,90,0)');
+      core.addColorStop(0,   'rgba(255,252,244,0.98)');
+      core.addColorStop(0.35,'rgba(255,200,110,0.6)');
+      core.addColorStop(1,   'rgba(255,150,40,0)');
       ctx.fillStyle = core;
       ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = `rgba(255,255,250,${0.5 + energy * 0.4})`;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.07, 0, 6.2832); ctx.fill();
 
       /* 6 — tap ripples */
       for (let i = ripples.length - 1; i >= 0; i--) {
