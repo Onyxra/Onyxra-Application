@@ -152,21 +152,21 @@ window.registerPage('dashboard', function initDashboard() {
     const BARS = 76;
     const seed = Array.from({ length: BARS }, () => Math.random() * 6.283);
 
-    // Drifting embers across the whole canvas — the background is a living field
-    const embers = Array.from({ length: 46 }, () => ({
+    // Sparse, slow-drifting embers — a faint living field
+    const embers = Array.from({ length: 22 }, () => ({
       x: Math.random(), y: Math.random(),
-      s: 0.6 + Math.random() * 1.9,
-      sp: 0.0004 + Math.random() * 0.0009,
-      dx: (Math.random() - 0.5) * 0.0004,
+      s: 0.5 + Math.random() * 1.5,
+      sp: 0.0002 + Math.random() * 0.0005,
+      dx: (Math.random() - 0.5) * 0.0003,
       ph: Math.random() * 6.283,
     }));
 
-    // Orbiting data-nodes — a constellation around the core (JARVIS-style)
-    const nodes = Array.from({ length: 10 }, (_, i) => ({
+    // Orbiting data-nodes — a calm constellation around the core
+    const nodes = Array.from({ length: 8 }, (_, i) => ({
       rr: 1.26 + (i % 3) * 0.24,
-      sp: (0.10 + (i % 4) * 0.05) * (i % 2 ? -1 : 1),
-      ph: (i / 10) * 6.283 + Math.random(),
-      sz: 1.5 + Math.random() * 1.8,
+      sp: (0.05 + (i % 4) * 0.025) * (i % 2 ? -1 : 1),
+      ph: (i / 8) * 6.283 + Math.random(),
+      sz: 1.3 + Math.random() * 1.4,
     }));
 
     function resize() {
@@ -210,12 +210,12 @@ window.registerPage('dashboard', function initDashboard() {
       // mood → target energy
       if (mood === 'speaking' && now > speakUntil) mood = 'idle';
       let base;
-      if (mood === 'idle')           base = 0.16 + Math.sin(t * 1.2) * 0.03;
-      else if (mood === 'thinking')  base = 0.36 + Math.sin(t * 5.0) * 0.13;
-      else if (mood === 'listening') base = 0.30 + Math.sin(t * 7.0) * 0.10;
-      else                           base = 0.66 + (Math.sin(t * 11) * 0.5 + 0.5) * 0.28 * (0.6 + 0.4 * Math.sin(t * 23));
+      if (mood === 'idle')           base = 0.12 + Math.sin(t * 0.6) * 0.02;
+      else if (mood === 'thinking')  base = 0.28 + Math.sin(t * 2.4) * 0.09;
+      else if (mood === 'listening') base = 0.22 + Math.sin(t * 3.0) * 0.07;
+      else                           base = 0.46 + (Math.sin(t * 5.0) * 0.5 + 0.5) * 0.20 * (0.6 + 0.4 * Math.sin(t * 10));
       if (reduce) base *= 0.5;
-      energy += (base - energy) * 0.12;
+      energy += (base - energy) * 0.07;
 
       // lean toward pointer
       const lean = R * 0.16 * ptr.act;
@@ -227,94 +227,81 @@ window.registerPage('dashboard', function initDashboard() {
 
       ctx.clearRect(0, 0, W, H);
 
-      /* 0 — full-screen living energy field: the entire background IS the AI */
+      /* 0 — faint ambient field: a soft, voice-like glow. Kept low so the
+         cards/panels read cleanly on top of it. */
       ctx.globalCompositeOperation = 'lighter';
-      const fieldR = Math.hypot(W, H) * 0.72;
+      const fieldR = Math.hypot(W, H) * 0.7;
       const field = ctx.createRadialGradient(cx, cy * 0.94, R * 0.4, cx, cy, fieldR);
-      field.addColorStop(0,    `rgba(255,150,40,${0.10 + energy * 0.07})`);
-      field.addColorStop(0.42, `rgba(190,95,22,${0.05 + energy * 0.035})`);
+      field.addColorStop(0,    `rgba(255,150,40,${0.045 + energy * 0.035})`);
+      field.addColorStop(0.42, `rgba(190,95,22,${0.022 + energy * 0.02})`);
       field.addColorStop(1,    'rgba(60,30,8,0)');
       ctx.fillStyle = field;
       ctx.fillRect(0, 0, W, H);
 
-      /* 0b — drifting embers across the whole field */
+      /* 0b — sparse drifting embers */
       for (const e of embers) {
         e.y -= e.sp; e.x += e.dx;
         if (e.y < -0.03) { e.y = 1.03; e.x = Math.random(); }
         if (e.x < -0.03) e.x = 1.03; else if (e.x > 1.03) e.x = -0.03;
-        const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 2 + e.ph));
+        const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 1.2 + e.ph));
         ctx.beginPath();
         ctx.arc(e.x * W, e.y * H, e.s, 0, 6.2832);
-        ctx.fillStyle = `rgba(255,${160 + Math.round(50 * tw)},95,${(0.08 + 0.20 * tw) * (0.55 + 0.45 * energy)})`;
+        ctx.fillStyle = `rgba(255,${160 + Math.round(50 * tw)},95,${(0.04 + 0.09 * tw) * (0.5 + 0.5 * energy)})`;
         ctx.fill();
       }
 
-      /* 1 — outer aura */
-      const auraR = R * (2.7 + energy * 0.8);
+      /* 1 — soft aura */
+      const auraR = R * (2.2 + energy * 0.5);
       const aura = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, auraR);
-      aura.addColorStop(0,   `rgba(255,176,46,${0.18 + energy * 0.14})`);
-      aura.addColorStop(0.5, `rgba(224,123,21,${0.09 + energy * 0.06})`);
+      aura.addColorStop(0,   `rgba(255,176,46,${0.07 + energy * 0.05})`);
+      aura.addColorStop(0.5, `rgba(224,123,21,${0.035 + energy * 0.025})`);
       aura.addColorStop(1,   'rgba(224,123,21,0)');
       ctx.fillStyle = aura;
       ctx.beginPath(); ctx.arc(cx, cy, auraR, 0, 6.2832); ctx.fill();
 
-      /* 2 — precision HUD ring system (gauge ticks, segmented arcs, sweep) */
+      /* 2 — geometric HUD: slow tick ring, thin guide rings, drifting arcs */
       ctx.lineCap = 'round';
-      const sweep = t * 0.6;
-      const squash = 1 - Math.abs(ptr.y) * 0.10 * ptr.act;   // subtle 3D tilt toward pointer
+      const sweep = t * 0.26;
+      const squash = 1 - Math.abs(ptr.y) * 0.10 * ptr.act;
 
-      // a) gauge tick ring
       const tickR = R * 1.6;
       for (let i = 0; i < 72; i++) {
-        const a = (i / 72) * 6.2832 + t * 0.04;
+        const a = (i / 72) * 6.2832 + t * 0.02;
         const long = (i % 6 === 0);
         const ca = Math.cos(a), sa = Math.sin(a) * squash;
-        const r1 = tickR + (long ? 10 : 5);
+        const r1 = tickR + (long ? 9 : 4);
         ctx.beginPath();
         ctx.moveTo(cx + ca * tickR, cy + sa * tickR);
         ctx.lineTo(cx + ca * r1, cy + sa * r1);
-        ctx.strokeStyle = `rgba(255,196,90,${(long ? 0.22 : 0.10) + energy * 0.22})`;
-        ctx.lineWidth = long ? 1.6 : 1;
+        ctx.strokeStyle = `rgba(255,196,90,${(long ? 0.16 : 0.07) + energy * 0.12})`;
+        ctx.lineWidth = long ? 1.4 : 0.9;
         ctx.stroke();
       }
 
-      // b) faint guide rings (squashed for depth)
       for (const rf of [1.30, 1.84, 2.12]) {
         ctx.beginPath();
         ctx.ellipse(cx, cy, R * rf, R * rf * squash, 0, 0, 6.2832);
-        ctx.strokeStyle = `rgba(255,196,90,${0.05 + energy * 0.06})`;
+        ctx.strokeStyle = `rgba(255,196,90,${0.04 + energy * 0.04})`;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // c) bright rotating segmented arcs
       for (let i = 0; i < 4; i++) {
         const rr = R * (1.38 + i * 0.2);
-        const rot = sweep * (0.5 + i * 0.35) * (i % 2 ? -1 : 1);
+        const rot = sweep * (0.5 + i * 0.3) * (i % 2 ? -1 : 1);
         const segs = 3 + i;
         const c = i === 1 ? PK : (i === 3 ? PU : CY);
         for (let s = 0; s < segs; s++) {
           const a0 = rot + (s / segs) * 6.2832;
           ctx.beginPath();
-          ctx.arc(cx, cy, rr, a0, a0 + (0.18 + 0.10 * Math.sin(t + s + i)));
-          ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.18 + energy * 0.4})`;
-          ctx.lineWidth = i === 0 ? 2.4 : 1.5;
+          ctx.arc(cx, cy, rr, a0, a0 + (0.16 + 0.08 * Math.sin(t * 0.6 + s + i)));
+          ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.12 + energy * 0.22})`;
+          ctx.lineWidth = i === 0 ? 1.8 : 1.2;
           ctx.stroke();
         }
       }
 
-      // d) radar sweep wedge
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R * 2.0, sweep, sweep + 0.55);
-      ctx.closePath();
-      const swg = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.0);
-      swg.addColorStop(0, 'rgba(255,196,90,0)');
-      swg.addColorStop(1, `rgba(255,196,90,${0.05 + energy * 0.09})`);
-      ctx.fillStyle = swg;
-      ctx.fill();
-
-      // e) orbiting data-nodes + constellation links
+      /* 2b — orbiting nodes + faint links */
       const npos = nodes.map(n => {
         const a = n.ph + t * n.sp;
         const rr = R * n.rr;
@@ -327,8 +314,8 @@ window.registerPage('dashboard', function initDashboard() {
             ctx.beginPath();
             ctx.moveTo(npos[i].x, npos[i].y);
             ctx.lineTo(npos[j].x, npos[j].y);
-            ctx.strokeStyle = `rgba(255,196,90,${0.12 * (1 - d / (R * 1.05)) * (0.5 + energy)})`;
-            ctx.lineWidth = 0.8;
+            ctx.strokeStyle = `rgba(255,196,90,${0.07 * (1 - d / (R * 1.05)) * (0.5 + energy)})`;
+            ctx.lineWidth = 0.7;
             ctx.stroke();
           }
         }
@@ -336,73 +323,80 @@ window.registerPage('dashboard', function initDashboard() {
       for (const p of npos) {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.sz, 0, 6.2832);
-        ctx.fillStyle = `rgba(255,210,120,${0.45 + energy * 0.45})`;
+        ctx.fillStyle = `rgba(255,210,120,${0.30 + energy * 0.30})`;
         ctx.fill();
       }
 
-      /* 3 — circular voice waveform (reacts as it speaks) */
+      /* 3 — circular voice waveform: a clean ring of bars that reacts as it speaks */
+      const waveR = R * (0.92 + energy * 0.05);
       for (let j = 0; j < BARS; j++) {
         const a = (j / BARS) * 6.2832;
-        const rad = radiusAt(a, pAng, bulge);
-        const n = Math.sin(t * 6 + seed[j] + a * 3) * 0.5 + 0.5;
-        const len = 4 + energy * 52 * (0.30 + 0.70 * n);
-        const r0 = rad + 6;
+        const n = Math.sin(t * 3 + seed[j] + a * 3) * 0.5 + 0.5;
+        const len = 3 + energy * 34 * (0.3 + 0.7 * n);
         const ca = Math.cos(a), sa = Math.sin(a);
-        const col = mix(CY, PU, 0.5 + 0.5 * Math.sin(a * 2 + t * 0.6));
+        const col = mix(CY, PU, 0.5 + 0.5 * Math.sin(a * 2 + t * 0.4));
         ctx.beginPath();
-        ctx.moveTo(cx + ca * r0, cy + sa * r0);
-        ctx.lineTo(cx + ca * (r0 + len), cy + sa * (r0 + len));
-        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.20 + energy * 0.5})`;
-        ctx.lineWidth = 2;
+        ctx.moveTo(cx + ca * waveR, cy + sa * waveR);
+        ctx.lineTo(cx + ca * (waveR + len), cy + sa * (waveR + len));
+        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.12 + energy * 0.30})`;
+        ctx.lineWidth = 1.4;
         ctx.stroke();
       }
 
-      /* 4 — molten body + faceted iris */
-      ctx.globalCompositeOperation = 'source-over';
+      /* 4 — geometric wireframe gem: two slow counter-rotating hexagons + facet
+         lattice. Mostly line-art and transparent, so panels float cleanly over. */
+      const SIDES = 6;
+      const Rv = R * (0.9 + energy * 0.05);
+      const Ri = R * (0.5 + energy * 0.04);
+      const outRot = t * 0.07;
+      const inRot = -t * 0.10 + 0.4;
+      const outer = [], inner = [];
+      for (let i = 0; i < SIDES; i++) {
+        const ao = outRot + (i / SIDES) * 6.2832;
+        const ai = inRot + (i / SIDES) * 6.2832;
+        outer.push({ x: cx + Math.cos(ao) * Rv, y: cy + Math.sin(ao) * Rv });
+        inner.push({ x: cx + Math.cos(ai) * Ri, y: cy + Math.sin(ai) * Ri });
+      }
+      // faint inner glow fill
       ctx.beginPath();
-      for (let i = 0; i <= N; i++) {
-        const a = (i / N) * 6.2832;
-        const r = radiusAt(a, pAng, bulge);
-        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
+      outer.forEach((v, i) => i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y));
       ctx.closePath();
-      const body = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R * 1.2);
-      body.addColorStop(0,   'rgba(255,232,185,0.95)');
-      body.addColorStop(0.5, 'rgba(255,150,40,0.55)');
-      body.addColorStop(1,   'rgba(200,95,18,0.18)');
-      ctx.fillStyle = body;
+      const gem = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rv);
+      gem.addColorStop(0, `rgba(255,210,130,${0.06 + energy * 0.05})`);
+      gem.addColorStop(1, 'rgba(255,150,40,0)');
+      ctx.fillStyle = gem;
       ctx.fill();
-      ctx.strokeStyle = `rgba(255,226,170,${0.4 + energy * 0.4})`;
-      ctx.lineWidth = 1.4;
+      // outer + inner outlines
+      ctx.strokeStyle = `rgba(255,214,150,${0.26 + energy * 0.28})`;
+      ctx.lineWidth = 1.1;
       ctx.stroke();
-
-      // faceted iris petals around the rim
-      ctx.globalCompositeOperation = 'lighter';
-      const irisRot = t * 0.25;
-      for (let i = 0; i < 12; i++) {
-        const a = irisRot + (i / 12) * 6.2832;
-        const a2 = a + (6.2832 / 12) * 0.6;
-        const ri = R * 0.52, ro = R * (0.82 + 0.05 * Math.sin(t * 3 + i));
+      ctx.beginPath();
+      inner.forEach((v, i) => i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y));
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(255,196,90,${0.16 + energy * 0.20})`;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      // facet lattice (connect outer ↔ inner)
+      for (let i = 0; i < SIDES; i++) {
         ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri);
-        ctx.lineTo(cx + Math.cos(a) * ro, cy + Math.sin(a) * ro);
-        ctx.lineTo(cx + Math.cos(a2) * ro, cy + Math.sin(a2) * ro);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(255,${175 + (i % 3) * 18},85,${0.05 + energy * 0.10})`;
-        ctx.fill();
+        ctx.moveTo(outer[i].x, outer[i].y);
+        ctx.lineTo(inner[i].x, inner[i].y);
+        ctx.lineTo(inner[(i + 1) % SIDES].x, inner[(i + 1) % SIDES].y);
+        ctx.strokeStyle = `rgba(255,196,90,${0.08 + energy * 0.10})`;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
       }
 
-      /* 5 — reactor core */
-      const coreR = R * (0.40 + energy * 0.20 + Math.sin(t * 2) * 0.02);
+      /* 5 — dim reactor core */
+      const coreR = R * (0.26 + energy * 0.12 + Math.sin(t * 1.0) * 0.015);
       const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
-      core.addColorStop(0,   'rgba(255,252,244,0.98)');
-      core.addColorStop(0.35,'rgba(255,200,110,0.6)');
+      core.addColorStop(0,   'rgba(255,248,235,0.7)');
+      core.addColorStop(0.4, 'rgba(255,200,110,0.3)');
       core.addColorStop(1,   'rgba(255,150,40,0)');
       ctx.fillStyle = core;
       ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, 6.2832); ctx.fill();
-      ctx.fillStyle = `rgba(255,255,250,${0.5 + energy * 0.4})`;
-      ctx.beginPath(); ctx.arc(cx, cy, R * 0.07, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = `rgba(255,255,250,${0.32 + energy * 0.28})`;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.05, 0, 6.2832); ctx.fill();
 
       /* 6 — tap ripples */
       for (let i = ripples.length - 1; i >= 0; i--) {
