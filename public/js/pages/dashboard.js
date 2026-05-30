@@ -152,16 +152,29 @@ window.registerPage('dashboard', function initDashboard() {
     const BARS = 76;
     const seed = Array.from({ length: BARS }, () => Math.random() * 6.283);
 
+    // Drifting embers across the whole canvas — the background is a living field
+    const embers = Array.from({ length: 46 }, () => ({
+      x: Math.random(), y: Math.random(),
+      s: 0.6 + Math.random() * 1.9,
+      sp: 0.0004 + Math.random() * 0.0009,
+      dx: (Math.random() - 0.5) * 0.0004,
+      ph: Math.random() * 6.283,
+    }));
+
     function resize() {
-      const rect = canvas.getBoundingClientRect();
-      const w = Math.max(1, rect.width);
-      const h = Math.max(1, rect.height);
+      // The orb is a full-bleed fixed background, so it always tracks the
+      // viewport. We set its CSS box explicitly (inline px) so no stylesheet /
+      // containing-block quirk can collapse it, and size the backing store too.
+      const w = Math.max(1, window.innerWidth);
+      const h = Math.max(1, window.innerHeight);
       dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       W = w; H = h;
-      CXp = w / 2; CYp = h / 2;
-      R = Math.min(w, h) * 0.26;
+      CXp = w / 2; CYp = h * 0.46;
+      R = Math.min(w, h) * 0.30;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
@@ -206,9 +219,30 @@ window.registerPage('dashboard', function initDashboard() {
 
       ctx.clearRect(0, 0, W, H);
 
-      /* 1 — outer aura */
+      /* 0 — full-screen living energy field: the entire background IS the AI */
       ctx.globalCompositeOperation = 'lighter';
-      const auraR = R * (2.5 + energy * 0.7);
+      const fieldR = Math.hypot(W, H) * 0.72;
+      const field = ctx.createRadialGradient(cx, cy * 0.94, R * 0.4, cx, cy, fieldR);
+      field.addColorStop(0,    `rgba(255,150,40,${0.10 + energy * 0.07})`);
+      field.addColorStop(0.42, `rgba(190,95,22,${0.05 + energy * 0.035})`);
+      field.addColorStop(1,    'rgba(60,30,8,0)');
+      ctx.fillStyle = field;
+      ctx.fillRect(0, 0, W, H);
+
+      /* 0b — drifting embers across the whole field */
+      for (const e of embers) {
+        e.y -= e.sp; e.x += e.dx;
+        if (e.y < -0.03) { e.y = 1.03; e.x = Math.random(); }
+        if (e.x < -0.03) e.x = 1.03; else if (e.x > 1.03) e.x = -0.03;
+        const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 2 + e.ph));
+        ctx.beginPath();
+        ctx.arc(e.x * W, e.y * H, e.s, 0, 6.2832);
+        ctx.fillStyle = `rgba(255,${160 + Math.round(50 * tw)},95,${(0.08 + 0.20 * tw) * (0.55 + 0.45 * energy)})`;
+        ctx.fill();
+      }
+
+      /* 1 — outer aura */
+      const auraR = R * (2.7 + energy * 0.8);
       const aura = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, auraR);
       aura.addColorStop(0,   `rgba(255,176,46,${0.18 + energy * 0.14})`);
       aura.addColorStop(0.5, `rgba(224,123,21,${0.09 + energy * 0.06})`);
@@ -327,7 +361,8 @@ window.registerPage('dashboard', function initDashboard() {
     hit.addEventListener('pointercancel', onUp);
 
     const ro = ('ResizeObserver' in window) ? new ResizeObserver(resize) : null;
-    if (ro) ro.observe(canvas); else window.addEventListener('resize', resize);
+    if (ro) ro.observe(canvas);
+    window.addEventListener('resize', resize);   // always — the orb tracks the viewport
 
     resize();
     raf = requestAnimationFrame(draw);
@@ -339,7 +374,8 @@ window.registerPage('dashboard', function initDashboard() {
       kick(a) { energy = Math.min(1.5, energy + (a || 0.35)); },
       destroy() {
         if (raf) cancelAnimationFrame(raf);
-        if (ro) ro.disconnect(); else window.removeEventListener('resize', resize);
+        if (ro) ro.disconnect();
+        window.removeEventListener('resize', resize);
         hit.removeEventListener('pointermove', onMove);
         hit.removeEventListener('pointerdown', onDown);
         hit.removeEventListener('pointerleave', onLeave);

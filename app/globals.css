@@ -3936,12 +3936,15 @@ select.form-input option { background: #141920; color: var(--text); }
   padding: 0 4px 80px;
 }
 
-/* Full-bleed living orb — the AI IS the dashboard background */
+/* Full-bleed living orb — the AI IS the dashboard background.
+   Sized in viewport units so it fills the screen regardless of any
+   containing-block quirks from ancestor transforms / the entry gate. */
 .ai-orb-bg {
   position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   z-index: 0;
   pointer-events: none;        /* #page-dashboard drives the pointer reactivity */
   touch-action: none;
