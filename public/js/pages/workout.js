@@ -71,7 +71,7 @@ window.registerPage('workout', function initWorkout() {
       name: 'Classic PPL',
       eyebrow: 'Strength · Volume',
       description: 'The timeless Push/Pull/Legs 6-day split. High volume, high frequency — designed to maximize muscle and strength gains for intermediate to advanced lifters.',
-      gradient: 'linear-gradient(135deg, #7c6af7 0%, #4a3ab8 100%)',
+      gradient: 'linear-gradient(135deg, #e07b15 0%, #a8550c 100%)',
       icon: '💪',
       daysPerWeek: 6,
       duration: 'Ongoing',
@@ -99,7 +99,7 @@ window.registerPage('workout', function initWorkout() {
       name: 'Classic Bro Split',
       eyebrow: 'Bodybuilding · Traditional',
       description: 'Chest/Tri, Back/Bi, Shoulders, Legs, Arms — one muscle group per day with maximum focus and volume per session. The original bodybuilding blueprint.',
-      gradient: 'linear-gradient(135deg, #f06292 0%, #ad1457 100%)',
+      gradient: 'linear-gradient(135deg, #ff7a4d 0%, #9c3a12 100%)',
       icon: '🏆',
       daysPerWeek: 5,
       duration: 'Ongoing',
@@ -2082,10 +2082,10 @@ const dayData   = currentDay === 'Rest' ? REST_DAY : (currentPhaseData[currentDa
     let editingDayId   = null; /* drill into a specific day editor */
 
     const GRADIENT_OPTIONS = [
-      'linear-gradient(135deg,#7c6af7 0%,#4a3ab8 100%)',
+      'linear-gradient(135deg,#e07b15 0%,#a8550c 100%)',
       'linear-gradient(135deg,#ff6b35 0%,#c93c10 100%)',
       'linear-gradient(135deg,#f5c842 0%,#c48a0a 100%)',
-      'linear-gradient(135deg,#f06292 0%,#ad1457 100%)',
+      'linear-gradient(135deg,#ff7a4d 0%,#9c3a12 100%)',
       'linear-gradient(135deg,#26a69a 0%,#00695c 100%)',
     ];
     const ICON_OPTIONS = ['📋','💪','🔬','⚡','🏆','🔥','🎯','🏋️'];

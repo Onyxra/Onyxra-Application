@@ -89,7 +89,7 @@ window.registerPage('family', function initFamily() {
       <!-- ── Header / Notes card ── -->
       <div class="card" style="margin-bottom:16px;overflow:hidden">
         <div style="padding:20px 22px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)">
-          <div style="width:54px;height:54px;border-radius:14px;background:rgba(124,106,247,0.15);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">${escapeHtml(m.icon || '👤')}</div>
+          <div style="width:54px;height:54px;border-radius:14px;background:rgba(224,123,21,0.15);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">${escapeHtml(m.icon || '👤')}</div>
           <div style="flex:1;min-width:0">
             <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;line-height:1">${escapeHtml(m.name)}</div>
             ${m.role ? `<div style="font-size:12px;color:var(--muted);margin-top:3px">${escapeHtml(m.role)}</div>` : ''}

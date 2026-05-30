@@ -111,7 +111,7 @@ window.registerPage('insights', function initInsights() {
       <div class="ins-card-head">Habit consistency <span class="ins-card-sub">${totalDone} check-ins · ${WEEKS} wks</span></div>
       <div class="ins-heatmap">${grid}</div>
       <div class="ins-hm-legend"><span>Less</span>${[0, 1, 2, 3, 4].map(l => `<span class="ins-hm-cell" data-l="${l}"></span>`).join('')}<span>More</span></div>
-      <div class="ins-habit-streaks">${habits.map(h => `<span class="ins-habit-streak" style="--hc:${esc(h.color || '#4fc3f7')}">${esc(h.icon || '✅')} ${esc(h.name)} <b>🔥${STATE.habitStreak(h.id)}</b></span>`).join('')}</div>
+      <div class="ins-habit-streaks">${habits.map(h => `<span class="ins-habit-streak" style="--hc:${esc(h.color || '#ffb340')}">${esc(h.icon || '✅')} ${esc(h.name)} <b>🔥${STATE.habitStreak(h.id)}</b></span>`).join('')}</div>
     </div>`;
   }
 
@@ -126,7 +126,7 @@ window.registerPage('insights', function initInsights() {
           ${metricCard('weight', 'Weight', 'lb', '#f5c842')}
           ${metricCard('bodyfat', 'Body fat', '%', '#ff6b35')}
           ${metricCard('networth', 'Net worth', '', '#3ddc6e')}
-          ${metricCard('mood', 'Mood', '', '#7c6af7')}
+          ${metricCard('mood', 'Mood', '', '#e07b15')}
         </div>
         ${heatmap()}
       </div>`;

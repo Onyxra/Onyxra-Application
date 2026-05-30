@@ -654,7 +654,7 @@ window.STATE = {
       id,
       name: name || 'New habit',
       icon: icon || '✅',
-      color: color || '#4fc3f7',
+      color: color || '#ffb340',
       ring: ring || 'focus',          // which Life Ring this feeds: focus | body | connect
       createdAt: new Date().toISOString(),
       log: {},
@@ -1320,7 +1320,7 @@ window.STATE = {
     wk.routines.push({
       id: rid, name, description: description || '',
       custom: true, repeatable: true,
-      gradient: 'linear-gradient(135deg,#7c6af7 0%,#4a3ab8 100%)',
+      gradient: 'linear-gradient(135deg,#e07b15 0%,#a8550c 100%)',
       icon: '📋',
       createdAt: new Date().toISOString(),
       stages: [],

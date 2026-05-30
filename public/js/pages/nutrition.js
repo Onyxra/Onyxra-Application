@@ -351,7 +351,7 @@ window.registerPage('nutrition', function initNutrition() {
 
       options.forEach(meal => {
         const isSelected = meal.id === selectedId;
-        const catBg = meal.category === 'Simple' ? 'rgba(76,175,158,0.13)' : meal.category === 'Premade' ? 'rgba(124,106,247,0.13)' : meal.category === 'Gourmet' ? 'rgba(240,156,58,0.13)' : 'rgba(107,138,170,0.08)';
+        const catBg = meal.category === 'Simple' ? 'rgba(76,175,158,0.13)' : meal.category === 'Premade' ? 'rgba(224,123,21,0.13)' : meal.category === 'Gourmet' ? 'rgba(240,156,58,0.13)' : 'rgba(107,138,170,0.08)';
 
         const item = document.createElement('div');
         item.className = 'meal-option' + (isSelected ? ' selected' : '');
@@ -418,7 +418,7 @@ window.registerPage('nutrition', function initNutrition() {
     const dist    = [...(ns.mealDistribution || [25, 30, 35, 10])];
     const targets = getSlotTargets();
     const total   = dist.reduce((s, v) => s + v, 0);
-    const slotColors = ['#42c4f5','#f5a623','var(--accent)','#c97bff'];
+    const slotColors = ['#f0a63c','#f5a623','var(--accent)','#ffb340'];
 
     el.innerHTML = `
       <div style="font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
@@ -588,8 +588,8 @@ window.registerPage('nutrition', function initNutrition() {
     const macros = [
       { label:'Calories', eaten:cal,  target:targets.calories, unit:'kcal', color:'var(--accent3)' },
       { label:'Protein',  eaten:pro,  target:targets.protein,  unit:'g',    color:'#f5a623' },
-      { label:'Carbs',    eaten:carb, target:targets.carbs,    unit:'g',    color:'#42c4f5' },
-      { label:'Fats',     eaten:fat,  target:targets.fats,     unit:'g',    color:'#c97bff' },
+      { label:'Carbs',    eaten:carb, target:targets.carbs,    unit:'g',    color:'#f0a63c' },
+      { label:'Fats',     eaten:fat,  target:targets.fats,     unit:'g',    color:'#ffb340' },
     ];
 
     grid.innerHTML = macros.map(m => {
@@ -917,8 +917,8 @@ window.registerPage('nutrition', function initNutrition() {
             <div class="builder-macro-bar" style="margin-top:14px">
               <div class="builder-macro-item"><div class="builder-macro-val" style="color:var(--accent3)">${Math.round(totals.calories)}</div><div class="builder-macro-lbl">kcal</div></div>
               <div class="builder-macro-item"><div class="builder-macro-val" style="color:#f5a623">${Math.round(totals.protein)}g</div><div class="builder-macro-lbl">protein</div></div>
-              <div class="builder-macro-item"><div class="builder-macro-val" style="color:#42c4f5">${Math.round(totals.carbs)}g</div><div class="builder-macro-lbl">carbs</div></div>
-              <div class="builder-macro-item"><div class="builder-macro-val" style="color:#c97bff">${Math.round(totals.fats)}g</div><div class="builder-macro-lbl">fats</div></div>
+              <div class="builder-macro-item"><div class="builder-macro-val" style="color:#f0a63c">${Math.round(totals.carbs)}g</div><div class="builder-macro-lbl">carbs</div></div>
+              <div class="builder-macro-item"><div class="builder-macro-val" style="color:#ffb340">${Math.round(totals.fats)}g</div><div class="builder-macro-lbl">fats</div></div>
             </div>` : ''}
             <button id="mbSave" class="phase-btn active" style="width:100%;padding:12px;font-size:14px;margin-top:14px">${builderMeal.id ? 'Update Meal' : 'Save Meal'} ✓</button>
           </div>
@@ -1181,12 +1181,12 @@ window.registerPage('nutrition', function initNutrition() {
           <div class="macro-calc-val">${m.protein}g</div>
           <div class="macro-calc-lbl">Protein (${pPct}%)</div>
         </div>
-        <div class="macro-calc-macro" style="--mc:${cPct}%;--col:#42c4f5">
+        <div class="macro-calc-macro" style="--mc:${cPct}%;--col:#f0a63c">
           <div class="macro-calc-bar"><div class="macro-calc-bar-fill"></div></div>
           <div class="macro-calc-val">${m.carbs}g</div>
           <div class="macro-calc-lbl">Carbs (${cPct}%)</div>
         </div>
-        <div class="macro-calc-macro" style="--mc:${fPct}%;--col:#c97bff">
+        <div class="macro-calc-macro" style="--mc:${fPct}%;--col:#ffb340">
           <div class="macro-calc-bar"><div class="macro-calc-bar-fill"></div></div>
           <div class="macro-calc-val">${m.fats}g</div>
           <div class="macro-calc-lbl">Fats (${fPct}%)</div>

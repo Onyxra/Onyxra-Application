@@ -23,7 +23,7 @@ window.registerPage('relationship', function initRelationship() {
 
   inner.innerHTML = `
     ${buildPageHeader('Your partner', 'Relationship', 'OS',
-      'A space for the most important person — anniversaries, gift ideas, how they\\'re doing.'
+      'A space for the most important person — anniversaries, gift ideas, how they are doing.'
     )}
     <div id="relationshipPanel"></div>`;
 
@@ -48,7 +48,7 @@ window.registerPage('relationship', function initRelationship() {
         <div style="padding:20px 22px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)">
           <input id="relIcon" type="text" maxlength="4" value="${escapeAttr(r.icon || '💕')}" style="
             width:60px;height:60px;border-radius:14px;
-            background:rgba(240,98,146,0.15);border:1px solid rgba(240,98,146,0.3);
+            background:rgba(255,122,77,0.15);border:1px solid rgba(255,122,77,0.3);
             text-align:center;font-size:34px;
             color:#fff;outline:none;font-family:inherit;flex-shrink:0
           " />
@@ -128,7 +128,7 @@ window.registerPage('relationship', function initRelationship() {
                   <div style="font-size:13px;color:rgba(255,255,255,0.92)">${escapeHtml(d.label)}</div>
                   <div style="font-size:11px;color:var(--muted);margin-top:2px">${formatImportantDate(d.date)}</div>
                 </div>
-                <span style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:#f06292;letter-spacing:1px;text-transform:uppercase">${daysUntil(d.date)}</span>
+                <span style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:#ff7a4d;letter-spacing:1px;text-transform:uppercase">${daysUntil(d.date)}</span>
                 <button class="removeDateBtn" data-did="${d.id}" style="background:none;border:none;color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer">×</button>
               </div>
             `).join('') : `<div style="text-align:center;padding:18px 0;color:var(--muted);font-size:12px;font-style:italic">Add anniversaries, birthdays, days that matter.</div>`}

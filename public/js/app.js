@@ -1306,7 +1306,7 @@ window.onyxConfetti = function (opts) {
   const w = () => window.innerWidth, h = () => window.innerHeight;
   function size() { canvas.width = w() * dpr; canvas.height = h() * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
   size();
-  const colors = ['#4fc3f7', '#7c6af7', '#f06292', '#3ddc6e', '#f5c842', '#ff6b35'];
+  const colors = ['#ffb340', '#ff7a18', '#ff5e47', '#ffd27a', '#e07b15', '#ff9a3c'];
   const ox = (opts.x != null) ? opts.x : w() / 2;
   const oy = (opts.y != null) ? opts.y : h() * 0.32;
   const parts = Array.from({ length: count }, (_, i) => ({

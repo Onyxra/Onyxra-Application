@@ -1006,7 +1006,7 @@ window.registerPage('passions', function initPassions() {
     if (!data) {
       return `
         <div class="card" style="margin-bottom:16px">
-          <div class="card-header" style="background:linear-gradient(135deg,rgba(124,106,247,0.1),transparent);border-bottom:1px solid rgba(124,106,247,0.15)">
+          <div class="card-header" style="background:linear-gradient(135deg,rgba(224,123,21,0.1),transparent);border-bottom:1px solid rgba(224,123,21,0.15)">
             <div style="display:flex;align-items:center;gap:10px">
               <div style="font-size:20px">🧠</div>
               <div>
@@ -1023,7 +1023,7 @@ window.registerPage('passions', function initPassions() {
 
     return `
       <div class="card" style="margin-bottom:16px;overflow:hidden">
-        <div class="card-header" style="background:linear-gradient(135deg,rgba(124,106,247,0.12),rgba(124,106,247,0.03));border-bottom:1px solid rgba(124,106,247,0.18)">
+        <div class="card-header" style="background:linear-gradient(135deg,rgba(224,123,21,0.12),rgba(224,123,21,0.03));border-bottom:1px solid rgba(224,123,21,0.18)">
           <div style="display:flex;align-items:center;gap:10px">
             <div style="font-size:22px">🧠</div>
             <div>
@@ -1034,7 +1034,7 @@ window.registerPage('passions', function initPassions() {
         </div>
         <div class="card-body">
 
-          <div style="padding:14px 16px;margin-bottom:20px;background:rgba(124,106,247,0.07);border-radius:10px;border:1px solid rgba(124,106,247,0.18);border-left:3px solid var(--accent)">
+          <div style="padding:14px 16px;margin-bottom:20px;background:rgba(224,123,21,0.07);border-radius:10px;border:1px solid rgba(224,123,21,0.18);border-left:3px solid var(--accent)">
             <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:6px">CORE TRUTH</div>
             <div style="font-size:13px;color:rgba(226,234,242,0.9);line-height:1.65;font-style:italic">${data.coreTruth}</div>
           </div>
@@ -1059,7 +1059,7 @@ window.registerPage('passions', function initPassions() {
             <div style="font-size:12px;color:rgba(226,234,242,0.7);line-height:1.7">${data.flow}</div>
           </div>
 
-          <div style="padding:12px 16px;background:rgba(124,106,247,0.05);border-radius:10px;border:1px solid rgba(124,106,247,0.12)">
+          <div style="padding:12px 16px;background:rgba(224,123,21,0.05);border-radius:10px;border:1px solid rgba(224,123,21,0.12)">
             <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:6px">KEY INSIGHT</div>
             <div style="font-size:12px;color:rgba(226,234,242,0.8);line-height:1.7">${data.insight}</div>
           </div>
@@ -1347,7 +1347,7 @@ window.registerPage('passions', function initPassions() {
             <div class="form-label" style="margin-bottom:10px;display:block">Board Blueprint</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px" id="blueprintPicker">
               ${PASSION_BLUEPRINTS.map((bp, i) => `
-                <div class="bp-card" data-bpid="${bp.id}" style="padding:14px;border-radius:10px;border:1px solid ${i === 0 ? 'var(--accent)' : 'var(--border)'};background:${i === 0 ? 'rgba(124,106,247,0.08)' : ''};cursor:pointer;transition:border-color 0.15s,background 0.15s">
+                <div class="bp-card" data-bpid="${bp.id}" style="padding:14px;border-radius:10px;border:1px solid ${i === 0 ? 'var(--accent)' : 'var(--border)'};background:${i === 0 ? 'rgba(224,123,21,0.08)' : ''};cursor:pointer;transition:border-color 0.15s,background 0.15s">
                   <div style="font-size:22px;margin-bottom:6px">${bp.icon}</div>
                   <div style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:3px">${bp.name}</div>
                   <div style="font-size:11px;color:var(--muted);line-height:1.4">${bp.desc}</div>
@@ -1386,7 +1386,7 @@ window.registerPage('passions', function initPassions() {
           x.style.background  = '';
         });
         c.style.borderColor = 'var(--accent)';
-        c.style.background  = 'rgba(124,106,247,0.08)';
+        c.style.background  = 'rgba(224,123,21,0.08)';
         /* Auto-set icon from blueprint if user hasn't typed one */
         const iconInput = panel.querySelector('#npIcon');
         if (!iconInput.value || PASSION_BLUEPRINTS.some(b => b.icon === iconInput.value)) {

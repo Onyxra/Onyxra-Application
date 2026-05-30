@@ -131,8 +131,8 @@ export default function Home() {
           <svg className="nav-logo-mark" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" width="34" height="34" aria-hidden="true">
             <defs>
               <linearGradient id="navLogoGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#4fc3f7"/>
-                <stop offset="100%" stopColor="#7c6af7"/>
+                <stop offset="0%" stopColor="#ffd27a"/>
+                <stop offset="100%" stopColor="#e07b15"/>
               </linearGradient>
             </defs>
             <rect width="36" height="36" rx="9" fill="url(#navLogoGrad)"/>

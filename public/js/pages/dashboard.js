@@ -115,10 +115,10 @@ window.registerPage('dashboard', function initDashboard() {
     const reduce = window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // palette
-    const CY = [79, 195, 247];   // cyan
-    const PU = [124, 106, 247];  // purple
-    const PK = [240, 98, 146];   // pink
+    // palette — molten amber (arc-reactor gold → burnt amber → hot-rod red)
+    const CY = [255, 184, 60];   // gold
+    const PU = [224, 123, 21];   // amber
+    const PK = [255, 84, 50];    // red
     const mix = (a, b, m) => [
       Math.round(a[0] + (b[0] - a[0]) * m),
       Math.round(a[1] + (b[1] - a[1]) * m),
@@ -207,9 +207,9 @@ window.registerPage('dashboard', function initDashboard() {
       ctx.globalCompositeOperation = 'lighter';
       const auraR = R * (2.5 + energy * 0.7);
       const aura = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, auraR);
-      aura.addColorStop(0,   `rgba(79,195,247,${0.18 + energy * 0.14})`);
-      aura.addColorStop(0.5, `rgba(124,106,247,${0.09 + energy * 0.06})`);
-      aura.addColorStop(1,   'rgba(124,106,247,0)');
+      aura.addColorStop(0,   `rgba(255,176,46,${0.18 + energy * 0.14})`);
+      aura.addColorStop(0.5, `rgba(224,123,21,${0.09 + energy * 0.06})`);
+      aura.addColorStop(1,   'rgba(224,123,21,0)');
       ctx.fillStyle = aura;
       ctx.beginPath(); ctx.arc(cx, cy, auraR, 0, 6.2832); ctx.fill();
 
@@ -256,12 +256,12 @@ window.registerPage('dashboard', function initDashboard() {
       }
       ctx.closePath();
       const body = ctx.createRadialGradient(cx - R * 0.32, cy - R * 0.32, R * 0.1, cx, cy, R * 1.25);
-      body.addColorStop(0,   'rgba(150,230,255,0.95)');
-      body.addColorStop(0.5, 'rgba(79,140,247,0.60)');
-      body.addColorStop(1,   'rgba(124,106,247,0.22)');
+      body.addColorStop(0,   'rgba(255,228,175,0.95)');
+      body.addColorStop(0.5, 'rgba(255,150,40,0.60)');
+      body.addColorStop(1,   'rgba(224,123,21,0.22)');
       ctx.fillStyle = body;
       ctx.fill();
-      ctx.strokeStyle = `rgba(190,238,255,${0.45 + energy * 0.35})`;
+      ctx.strokeStyle = `rgba(255,222,165,${0.45 + energy * 0.35})`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
@@ -269,9 +269,9 @@ window.registerPage('dashboard', function initDashboard() {
       ctx.globalCompositeOperation = 'lighter';
       const coreR = R * (0.40 + energy * 0.18 + Math.sin(t * 2) * 0.02);
       const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
-      core.addColorStop(0,   'rgba(240,252,255,0.95)');
-      core.addColorStop(0.4, 'rgba(130,205,255,0.55)');
-      core.addColorStop(1,   'rgba(130,205,255,0)');
+      core.addColorStop(0,   'rgba(255,250,238,0.95)');
+      core.addColorStop(0.4, 'rgba(255,190,90,0.55)');
+      core.addColorStop(1,   'rgba(255,190,90,0)');
       ctx.fillStyle = core;
       ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, 6.2832); ctx.fill();
 
@@ -283,7 +283,7 @@ window.registerPage('dashboard', function initDashboard() {
         const al = Math.max(0, rp.life / rp.max) * 0.5;
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, rp.r, 0, 6.2832);
-        ctx.strokeStyle = `rgba(190,238,255,${al})`;
+        ctx.strokeStyle = `rgba(255,222,165,${al})`;
         ctx.lineWidth = 2;
         ctx.stroke();
         if (rp.life <= 0) ripples.splice(i, 1);
@@ -983,7 +983,7 @@ window.registerPage('dashboard', function initDashboard() {
           ${habits.length ? habits.map(h => {
             const done = !!(h.log && h.log[t.day]);
             const streak = STATE.habitStreak(h.id);
-            return `<button class="onyx-habit${done ? ' done' : ''}" data-habit="${h.id}" style="--hc:${escapeHtml(h.color || '#4fc3f7')}">
+            return `<button class="onyx-habit${done ? ' done' : ''}" data-habit="${h.id}" style="--hc:${escapeHtml(h.color || '#ffb340')}">
               <span class="onyx-habit-icon">${escapeHtml(h.icon || '✅')}</span>
               <span class="onyx-habit-name">${escapeHtml(h.name)}</span>
               ${streak > 0 ? `<span class="onyx-habit-streak">🔥${streak}</span>` : ''}
@@ -1055,7 +1055,7 @@ window.registerPage('dashboard', function initDashboard() {
   function showHabitAdd() {
     const row = document.getElementById('onyxHabitsRow');
     if (!row) return;
-    const RINGS = [['focus', '🎯', '#4fc3f7'], ['body', '💪', '#ff6b35'], ['connect', '💬', '#f06292']];
+    const RINGS = [['focus', '🎯', '#ffb340'], ['body', '💪', '#ff6b35'], ['connect', '💬', '#ff7a4d']];
     row.innerHTML = `
       <form class="onyx-habit-form" id="onyxHabitForm">
         <input class="onyx-habit-input" id="onyxHabitName" placeholder="New habit (e.g. Read 20 min)" autocomplete="off" />
@@ -1066,7 +1066,7 @@ window.registerPage('dashboard', function initDashboard() {
       </form>`;
     const form = document.getElementById('onyxHabitForm');
     const name = document.getElementById('onyxHabitName');
-    let pick = { ring: 'focus', icon: '🎯', color: '#4fc3f7' };
+    let pick = { ring: 'focus', icon: '🎯', color: '#ffb340' };
     row.querySelectorAll('.onyx-habit-ringpick').forEach(b => b.addEventListener('click', () => {
       row.querySelectorAll('.onyx-habit-ringpick').forEach(x => x.classList.remove('on'));
       b.classList.add('on');

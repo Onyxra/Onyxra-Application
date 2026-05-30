@@ -15,7 +15,7 @@ window.registerPage('journal', function initJournal() {
     2: ['😕', 'Meh', '#f5a623'],
     3: ['😐', 'Okay', '#f5c842'],
     4: ['🙂', 'Good', '#3ddc6e'],
-    5: ['🤩', 'Amazing', '#4fc3f7'],
+    5: ['🤩', 'Amazing', '#ffb340'],
   };
   let draftMood = null;
 
@@ -38,13 +38,13 @@ window.registerPage('journal', function initJournal() {
     const xs = series.map((p, i) => pad + (i / (series.length - 1)) * (W - 2 * pad));
     const ys = series.map(p => H - pad - ((p.value - 1) / 4) * (H - 2 * pad));
     const pts = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-    const dots = series.map((p, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.8" fill="${MOODS[Math.round(p.value)]?.[2] || '#4fc3f7'}"/>`).join('');
+    const dots = series.map((p, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.8" fill="${MOODS[Math.round(p.value)]?.[2] || '#ffb340'}"/>`).join('');
     const avg = (series.reduce((s, p) => s + p.value, 0) / series.length).toFixed(1);
     return `<div class="jr-card jr-chart-card">
       <div class="jr-chart-head"><span>Mood trend</span><span class="jr-chart-sub">avg ${avg} · last ${series.length}</span></div>
       <svg viewBox="0 0 ${W} ${H}" class="jr-mood-chart" preserveAspectRatio="none" aria-hidden="true">
         <defs><linearGradient id="jrgrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#7c6af7"/><stop offset="100%" stop-color="#4fc3f7"/>
+          <stop offset="0%" stop-color="#e07b15"/><stop offset="100%" stop-color="#ffb340"/>
         </linearGradient></defs>
         <polyline points="${pts}" fill="none" stroke="url(#jrgrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         ${dots}

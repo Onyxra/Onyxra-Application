@@ -86,9 +86,9 @@ export default function LandingGate() {
     window.addEventListener('resize', resize);
 
     const mix = (a, b, t) => Math.round(a + (b - a) * t);
-    const C_CYAN = [79, 195, 247];
-    const C_VIOL = [124, 106, 247];
-    const C_MINT = [61, 220, 180];
+    const C_CYAN = [255, 184, 60];
+    const C_VIOL = [224, 123, 21];
+    const C_MINT = [255, 96, 50];
 
     function blob(radius, amp, t, spin, pActive, pAngle, bulge, offX, offY) {
       ctx.beginPath();
@@ -151,11 +151,11 @@ export default function LandingGate() {
       // 1 — outer halo
       blob(baseR * 1.45, amp * 0.7, t * 0.7, 0, pActive, pAngle, bulge * 0.6, leanX * 0.5, leanY * 0.5);
       let g = ctx.createRadialGradient(cx + leanX, cy + leanY, baseR * 0.2, cx, cy, baseR * 1.7);
-      g.addColorStop(0, 'rgba(79,195,247,0.22)');
-      g.addColorStop(0.5, 'rgba(124,106,247,0.16)');
-      g.addColorStop(1, 'rgba(124,106,247,0)');
+      g.addColorStop(0, 'rgba(255,176,46,0.22)');
+      g.addColorStop(0.5, 'rgba(224,123,21,0.16)');
+      g.addColorStop(1, 'rgba(224,123,21,0)');
       ctx.fillStyle = g;
-      ctx.shadowColor = 'rgba(124,106,247,0.55)';
+      ctx.shadowColor = 'rgba(224,123,21,0.55)';
       ctx.shadowBlur = reduced ? 0 : 38;
       ctx.fill();
 
@@ -169,21 +169,21 @@ export default function LandingGate() {
         cy + leanY,
         baseR * 1.25
       );
-      g.addColorStop(0, 'rgba(180,230,255,0.95)');
-      g.addColorStop(0.35, 'rgba(79,195,247,0.6)');
-      g.addColorStop(0.75, 'rgba(124,106,247,0.45)');
-      g.addColorStop(1, 'rgba(124,106,247,0.05)');
+      g.addColorStop(0, 'rgba(255,228,175,0.95)');
+      g.addColorStop(0.35, 'rgba(255,176,46,0.6)');
+      g.addColorStop(0.75, 'rgba(224,123,21,0.45)');
+      g.addColorStop(1, 'rgba(224,123,21,0.05)');
       ctx.fillStyle = g;
-      ctx.shadowColor = 'rgba(79,195,247,0.7)';
+      ctx.shadowColor = 'rgba(255,176,46,0.7)';
       ctx.shadowBlur = reduced ? 0 : 30;
       ctx.fill();
 
       // 3 — inner counter-rotating layer for depth
       blob(baseR * 0.72, amp * 1.1, -t * 1.2, 0.6, pActive, pAngle, bulge * 0.5, leanX * 1.3, leanY * 1.3);
       g = ctx.createRadialGradient(cx + leanX, cy + leanY, 0, cx + leanX, cy + leanY, baseR);
-      g.addColorStop(0, 'rgba(235,250,255,0.9)');
-      g.addColorStop(0.5, 'rgba(120,200,255,0.35)');
-      g.addColorStop(1, 'rgba(124,106,247,0)');
+      g.addColorStop(0, 'rgba(255,250,238,0.9)');
+      g.addColorStop(0.5, 'rgba(255,190,90,0.35)');
+      g.addColorStop(1, 'rgba(224,123,21,0)');
       ctx.fillStyle = g;
       ctx.shadowBlur = 0;
       ctx.fill();
@@ -193,8 +193,8 @@ export default function LandingGate() {
       const coreR = baseR * (0.16 + 0.05 * breath);
       g = ctx.createRadialGradient(cx + leanX, cy + leanY, 0, cx + leanX, cy + leanY, coreR * 2.4);
       g.addColorStop(0, 'rgba(255,255,255,0.95)');
-      g.addColorStop(0.4, 'rgba(190,235,255,0.6)');
-      g.addColorStop(1, 'rgba(124,106,247,0)');
+      g.addColorStop(0.4, 'rgba(255,222,165,0.6)');
+      g.addColorStop(1, 'rgba(224,123,21,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(cx + leanX, cy + leanY, coreR * 2.4, 0, Math.PI * 2);
@@ -243,7 +243,7 @@ export default function LandingGate() {
         ctx.beginPath();
         ctx.arc(cx, cy, baseR * 1.62, t * 0.5 + Math.PI, t * 0.5 + Math.PI + 0.8);
         ctx.stroke();
-        ctx.strokeStyle = 'rgba(124,106,247,0.3)';
+        ctx.strokeStyle = 'rgba(224,123,21,0.3)';
         ctx.beginPath();
         ctx.arc(cx, cy, baseR * 1.78, -t * 0.35, -t * 0.35 + 0.6);
         ctx.stroke();
@@ -260,7 +260,7 @@ export default function LandingGate() {
           ripples.splice(i, 1);
           continue;
         }
-        ctx.strokeStyle = `rgba(150,200,255,${al})`;
+        ctx.strokeStyle = `rgba(255,222,165,${al})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(cx, cy, rr, 0, Math.PI * 2);

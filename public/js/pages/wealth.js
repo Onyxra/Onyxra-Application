@@ -22,7 +22,7 @@ window.registerPage('wealth', function initWealth() {
       ]
     },
     {
-      id: 'stocks', label: 'Stock Investments', icon: '📈', color: '#4fc3f7', isLiability: false,
+      id: 'stocks', label: 'Stock Investments', icon: '📈', color: '#ffb340', isLiability: false,
       items: [
         { id: 'voo',        label: 'VOO — S&P 500 ETF' },
         { id: 'vti',        label: 'VTI — Total Market ETF' },
@@ -41,7 +41,7 @@ window.registerPage('wealth', function initWealth() {
       ]
     },
     {
-      id: 'retirement', label: 'Retirement Accounts', icon: '🛡️', color: '#7c6af7', isLiability: false,
+      id: 'retirement', label: 'Retirement Accounts', icon: '🛡️', color: '#e07b15', isLiability: false,
       items: [
         { id: '401k',     label: '401(k)' },
         { id: 'roth_ira', label: 'Roth IRA' },
@@ -50,7 +50,7 @@ window.registerPage('wealth', function initWealth() {
       ]
     },
     {
-      id: 'real_estate', label: 'Real Estate', icon: '🏠', color: '#26c6da', isLiability: false,
+      id: 'real_estate', label: 'Real Estate', icon: '🏠', color: '#d9a441', isLiability: false,
       items: [
         { id: 'primary_home', label: 'Primary Home' },
         { id: 'rental_1',     label: 'Rental Property 1' },
@@ -68,7 +68,7 @@ window.registerPage('wealth', function initWealth() {
       ]
     },
     {
-      id: 'valuables', label: 'Collectibles & Valuables', icon: '🏆', color: '#f06292', isLiability: false,
+      id: 'valuables', label: 'Collectibles & Valuables', icon: '🏆', color: '#ff7a4d', isLiability: false,
       items: [
         { id: 'precious_metals', label: 'Gold & Silver' },
         { id: 'jewelry',         label: 'Jewelry & Watches' },
@@ -211,7 +211,7 @@ window.registerPage('wealth', function initWealth() {
 
     document.getElementById('wealthStats').innerHTML = [
       { label: 'Cash & Liquid',    value: cashTotal,    color: '#3ddc6e' },
-      { label: 'Investments',      value: investTotal,  color: '#4fc3f7' },
+      { label: 'Investments',      value: investTotal,  color: '#ffb340' },
       { label: 'Physical Assets',  value: physicalTotal,color: '#f5a623' },
       { label: 'Business Equity',  value: bizTotal,     color: '#f5c842' },
     ].map(s => `

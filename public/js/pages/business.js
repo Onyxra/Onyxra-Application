@@ -163,7 +163,7 @@ window.registerPage('business', function initBusiness() {
         </div>
         <div class="card-body">
           <div class="stage-timeline" id="stageTimeline"></div>
-          <div id="stageDetail" style="margin-top:16px;padding:14px 16px;background:rgba(124,106,247,0.06);border:1px solid rgba(124,106,247,0.2);border-radius:10px">
+          <div id="stageDetail" style="margin-top:16px;padding:14px 16px;background:rgba(224,123,21,0.06);border:1px solid rgba(224,123,21,0.2);border-radius:10px">
             <div style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);margin-bottom:5px">
               Current Stage — ${stage.name}
             </div>
@@ -367,7 +367,7 @@ window.registerPage('business', function initBusiness() {
           <div style="margin-top:20px">
             <label class="form-label" style="margin-bottom:10px;display:block">Board Type</label>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px" id="boardTypePicker">
-              <div class="bp-card" data-bt="saas" style="padding:14px;border-radius:10px;border:1px solid var(--accent);background:rgba(124,106,247,0.08);cursor:pointer">
+              <div class="bp-card" data-bt="saas" style="padding:14px;border-radius:10px;border:1px solid var(--accent);background:rgba(224,123,21,0.08);cursor:pointer">
                 <div style="font-size:20px;margin-bottom:6px">⚡</div>
                 <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;margin-bottom:2px">SaaS</div>
                 <div style="font-size:11px;color:var(--muted);line-height:1.4">Software · Subscription · Digital product</div>
@@ -398,7 +398,7 @@ window.registerPage('business', function initBusiness() {
           x.style.background  = '';
         });
         c.style.borderColor = 'var(--accent)';
-        c.style.background  = 'rgba(124,106,247,0.08)';
+        c.style.background  = 'rgba(224,123,21,0.08)';
       });
     });
 
