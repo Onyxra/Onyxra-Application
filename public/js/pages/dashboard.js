@@ -503,9 +503,6 @@ window.registerPage('dashboard', function initDashboard() {
 
   function render() {
     inner.innerHTML = `
-      <!-- Living AI orb — full-bleed background of the entire dashboard -->
-      <canvas class="ai-orb-bg" id="dashOrb" aria-hidden="true"></canvas>
-
       <div class="ai-dash">
 
         <!-- Orb hero — the caption floats over the glowing orb -->
@@ -572,8 +569,21 @@ window.registerPage('dashboard', function initDashboard() {
   ───────────────────────────────────────────────────────────── */
   function initOrb() {
     if (window.__dashOrb) { try { window.__dashOrb.destroy(); } catch (e) {} }
-    const canvas = document.getElementById('dashOrb');
-    orb = canvas ? createDashOrb(canvas, document.getElementById('page-dashboard')) : null;
+    // The orb lives OUTSIDE the pages (directly in #mainContent, behind every
+    // page) — a position:fixed, continuously-animating canvas placed INSIDE an
+    // opacity-transitioning .page stalls the opacity transitions of the other
+    // pages, leaving them blank. Only #page-dashboard is transparent, so the
+    // orb shows through there and is covered by the opaque pages elsewhere.
+    const host = document.getElementById('mainContent') || document.body;
+    let canvas = document.getElementById('dashOrb');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.id = 'dashOrb';
+      canvas.className = 'ai-orb-bg';
+      canvas.setAttribute('aria-hidden', 'true');
+    }
+    if (canvas.parentElement !== host) host.insertBefore(canvas, host.firstChild);
+    orb = createDashOrb(canvas, document.getElementById('page-dashboard'));
     window.__dashOrb = orb;
   }
 

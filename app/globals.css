@@ -505,7 +505,10 @@ button { background: none; border: none; cursor: pointer; font-family: inherit; 
   overflow-x: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  /* NO opacity transition: the full-screen, continuously-animating orb canvas
+     stalls CSS opacity transitions, which left every active page stuck at
+     opacity:0 (blank). Snapping visibility is bulletproof. */
+  transition: none;
   /* Page-specific background gradient using accent colour */
   background: var(--bg);
   background-image:
@@ -3949,6 +3952,9 @@ select.form-input option { background: #141920; color: var(--text); }
   pointer-events: none;        /* #page-dashboard drives the pointer reactivity */
   touch-action: none;
 }
+/* The orb canvas sits in #mainContent behind every page; only the dashboard
+   page is transparent so it shows through there (other pages cover it). */
+#page-dashboard { background: transparent; }
 
 /* Hero spacer — lets the orb breathe; the caption floats at its base */
 .ai-orb-hero {
