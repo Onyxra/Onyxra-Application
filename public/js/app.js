@@ -47,7 +47,7 @@ const PAGE_NAMES = {
   dashboard:    'Dashboard',
   journal:      'Journal',
   insights:     'Insights',
-  nutrition:    'Nutrition',
+  nutrition:    'Meal Plan',
   workout:      'Workout',
   business:     'Business',
   wealth:       'Investments',
@@ -1028,6 +1028,14 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
           if (pg) { nav = pg; out.push({ icon: '➡', label: 'Open ' + (PAGE_NAMES[pg] || pg) }); }
           break;
         }
+        case 'show_card': {
+          const c = String(a.card || '').toLowerCase();
+          if (['meal', 'workout', 'focus', 'money', 'connect'].includes(c) && typeof window.onyxShowCard === 'function') {
+            setTimeout(() => window.onyxShowCard(c), 350);
+            out.push({ icon: '🃏', label: 'Showing ' + c });
+          }
+          break;
+        }
         default: break;
       }
     } catch (e) { /* skip a single bad action, keep the rest */ }
@@ -1346,4 +1354,63 @@ window.onyxConfetti = function (opts) {
     pending = true;
     setTimeout(() => { pending = false; celebrate(); }, 140);
   });
+})();
+
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE BOTTOM BAR
+   Dashboard + the five life categories around a raised center Quick
+   Capture +. Tapping a category lands on its primary page; swipe
+   left/right then moves between that category's sub-pages. Mobile only
+   (CSS) — desktop keeps the hamburger drawer + floating FAB.
+════════════════════════════════════════════════════════════════ */
+(function bottomBar() {
+  const LEFT = [
+    { cat: 'dashboard', page: 'dashboard', icon: '⬡', label: 'Home' },
+    { cat: 'people', page: 'relationship', icon: '💕', label: 'People' },
+    { cat: 'health', page: 'workout', icon: '◉', label: 'Health' },
+  ];
+  const RIGHT = [
+    { cat: 'wealth', page: 'wealth', icon: '◈', label: 'Wealth' },
+    { cat: 'business', page: 'business', icon: '🏗️', label: 'Business' },
+    { cat: 'interests', page: 'passions', icon: '✦', label: 'Interests' },
+  ];
+  const item = (it) => `<button class="onyx-bb-item" data-cat="${it.cat}" data-page="${it.page}">
+      <span class="onyx-bb-icon">${it.icon}</span><span class="onyx-bb-label">${it.label}</span></button>`;
+
+  const bar = document.createElement('nav');
+  bar.className = 'onyx-bottombar';
+  bar.id = 'onyxBottomBar';
+  bar.setAttribute('aria-label', 'Primary');
+  bar.innerHTML = LEFT.map(item).join('')
+    + `<button class="onyx-bb-capture" id="onyxBbCapture" type="button" aria-label="Quick capture"><span class="onyx-bb-plus">+</span></button>`
+    + RIGHT.map(item).join('');
+  document.body.appendChild(bar);
+
+  bar.querySelectorAll('.onyx-bb-item').forEach(b => b.addEventListener('click', () => {
+    if (window.haptic) window.haptic('tap');
+    navigateTo(b.dataset.page);
+  }));
+  document.getElementById('onyxBbCapture').addEventListener('click', () => {
+    if (window.haptic) window.haptic('pop');
+    if (window.openCapture) window.openCapture();
+  });
+
+  function pageCat(p) {
+    if (p === 'dashboard') return 'dashboard';
+    if (p === 'relationship' || p === 'family' || p === 'friends') return 'people';
+    if (p === 'workout' || p === 'nutrition') return 'health';
+    if (p === 'wealth') return 'wealth';
+    if (p === 'business') return 'business';
+    if (p === 'passions') return 'interests';
+    return null;
+  }
+  function sync() {
+    const cur = (typeof getCurrentPage === 'function') ? getCurrentPage() : 'dashboard';
+    const cat = pageCat(cur);
+    bar.querySelectorAll('.onyx-bb-item').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  }
+  window.addEventListener('onyxra:navigate', sync);
+  window.addEventListener('hashchange', sync);
+  sync();
 })();

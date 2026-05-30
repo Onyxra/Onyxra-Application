@@ -88,7 +88,7 @@ export default function Home() {
             <span className="drawer-nav-icon">◉</span><span>Workout</span>
           </a>
           <a className="drawer-nav-item" data-page="nutrition" href="#nutrition">
-            <span className="drawer-nav-icon">◈</span><span>Nutrition</span>
+            <span className="drawer-nav-icon">◈</span><span>Meal Plan</span>
           </a>
 
           <div className="drawer-section-label">Wealth</div>
@@ -181,7 +181,7 @@ export default function Home() {
           </a>
           <a className="nav-item" data-page="nutrition" href="#nutrition">
             <span className="nav-icon">◈</span>
-            <span className="nav-label">Nutrition</span>
+            <span className="nav-label">Meal Plan</span>
           </a>
 
           {/* ── WEALTH ── */}

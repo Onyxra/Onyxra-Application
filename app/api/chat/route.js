@@ -56,6 +56,10 @@ NO block. Supported actions (use only these types and fields):
   {"type":"add_family_update","name":"Mom","text":"Recovering well after surgery"}
   {"type":"add_friend_update","name":"Jake","text":"Got the new job"}
   {"type":"navigate","page":"workout"}                 // dashboard|workout|nutrition|wealth|business|passions|relationship|family|friends|settings
+  {"type":"show_card","card":"meal"}                    // pop a live card on the dashboard: meal|workout|focus|money|connect
+
+When the user asks "what's my next meal / today's workout / how's my money", prefer
+show_card so they get an interactive card, and keep your sentence short.
 
 Numbers must be raw (182 not "182 lbs"). Put MULTIPLE actions in the one array
 when the user says several things at once. Match names/tasks to what already

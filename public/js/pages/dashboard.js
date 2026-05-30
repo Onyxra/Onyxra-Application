@@ -32,6 +32,7 @@ window.registerPage('dashboard', function initDashboard() {
   let voiceOn = (typeof localStorage !== 'undefined' && localStorage.getItem('onyxra_voice') === 'off') ? false : true;
   let recog = null;      // SpeechRecognition instance (voice input)
   let listening = false; // mic actively listening
+  let mealSlot = 0;      // which meal slot the meal card is showing (swipeable)
 
   /* ─────────────────────────────────────────────────────────────
      SNAPSHOT — sent to AI as context
@@ -357,12 +358,14 @@ window.registerPage('dashboard', function initDashboard() {
 
   const BRIEF_PROMPT = "Give me a punchy daily briefing. Greet me by name, then in short bullet lines: my #1 priority this week, today's workout day, anyone I should reach out to, one habit to keep alive, and end with a single motivating line. Keep it tight — under 7 short lines.";
 
-  const SECTORS = [
-    { label: 'People',    icon: '💕',  page: 'relationship', accent: '#f06292' },
-    { label: 'Health',    icon: '◉',  page: 'workout',      accent: '#ff6b35' },
-    { label: 'Wealth',    icon: '◈',  page: 'wealth',       accent: '#3ddc6e' },
-    { label: 'Business',  icon: '🏗️', page: 'business',     accent: '#7c6af7' },
-    { label: 'Interests', icon: '✦',  page: 'passions',     accent: '#4fc3f7' },
+  // Card CTAs — tapping one summons a live, interactive card (the AI can
+  // summon the same cards via a show_card action).
+  const CARD_CTAS = [
+    { key: 'meal',    label: 'Meal Plan', icon: '🍽️' },
+    { key: 'workout', label: 'Workout',   icon: '🏋️' },
+    { key: 'focus',   label: 'Focus',     icon: '🎯' },
+    { key: 'money',   label: 'Money',     icon: '💰' },
+    { key: 'connect', label: 'Connect',   icon: '💕' },
   ];
 
   function render() {
@@ -384,6 +387,12 @@ window.registerPage('dashboard', function initDashboard() {
         <!-- Daily briefing -->
         <button class="ai-brief-btn" id="aiBriefBtn" type="button">☀️ Brief me on my day</button>
 
+        <!-- Summonable cards — tap a CTA (or ask the AI) to pop a live card -->
+        <div class="ai-card-ctas">
+          ${CARD_CTAS.map(c => `<button class="ai-card-cta" type="button" data-card="${c.key}"><span class="ai-card-cta-icon">${c.icon}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}
+        </div>
+        <div class="onyx-cardstage" id="onyxCardStage"></div>
+
         <!-- Today command center (Life Rings + streak + mood + habits + focus) -->
         <div class="onyx-today" id="onyxToday"></div>
 
@@ -391,16 +400,6 @@ window.registerPage('dashboard', function initDashboard() {
         <div class="ai-suggest">
           ${SUGGESTIONS.map(s => `
             <button class="ai-suggest-btn" type="button" data-prompt="${escapeHtml(s)}">${escapeHtml(s)}</button>
-          `).join('')}
-        </div>
-
-        <!-- Sector shortcuts -->
-        <div class="ai-ctas ai-quick">
-          ${SECTORS.map(s => `
-            <button class="ai-cta-btn" type="button" data-page="${s.page}" style="--accent:${s.accent}">
-              <span class="ai-cta-icon">${s.icon}</span>
-              <span class="ai-cta-label">${s.label}</span>
-            </button>
           `).join('')}
         </div>
 
@@ -482,12 +481,15 @@ window.registerPage('dashboard', function initDashboard() {
       sendChat(BRIEF_PROMPT);
     });
 
-    document.querySelectorAll('.ai-quick .ai-cta-btn').forEach(btn => {
+    document.querySelectorAll('.ai-card-cta').forEach(btn => {
       btn.addEventListener('click', () => {
-        const pg = btn.dataset.page;
-        if (pg) navigateTo(pg);
+        if (window.haptic) window.haptic('tap');
+        showCard(btn.dataset.card);
       });
     });
+
+    // Let the AI (show_card action) and other modules summon cards.
+    window.onyxShowCard = (key) => showCard(key);
   }
 
   async function sendChat(text) {
@@ -701,6 +703,181 @@ window.registerPage('dashboard', function initDashboard() {
     }
 
     micBtn.addEventListener('click', () => listening ? stopListening() : startListening());
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     SUMMONABLE CARDS — tap a CTA or ask the AI; a live, interactive
+     card pops into the stage. Google-style answer cards for your life.
+  ───────────────────────────────────────────────────────────── */
+  function cardShell(icon, title, bodyHtml, openPage) {
+    return `<div class="ai-card ai-pop">
+      <div class="ai-card-head">
+        <span class="ai-card-title">${icon} ${escapeHtml(title)}</span>
+        <div class="ai-card-headtools">
+          ${openPage ? `<button class="ai-card-open" type="button" data-open="${openPage}">Open →</button>` : ''}
+          <button class="ai-card-close" type="button" data-card-close aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="ai-card-body">${bodyHtml}</div>
+    </div>`;
+  }
+
+  function nextMealSlot() {
+    const h = new Date().getHours();
+    return h < 11 ? 0 : h < 15 ? 1 : h < 20 ? 2 : 3;
+  }
+  function mealForSlot(slot) {
+    const phase = STATE.data.nutrition.currentPhase || 'maintain';
+    const options = (APP_DATA.nutrition?.meals?.[phase]?.[slot]) || [];
+    const selIdx = STATE.data.nutrition.selectedMeals?.[phase]?.[slot];
+    const chosen = (selIdx != null && options[selIdx]) ? options[selIdx] : options[0];
+    return { meal: chosen, chosen: !!(selIdx != null && options[selIdx]), phase };
+  }
+
+  function buildMealCard() {
+    const titles = APP_DATA.nutrition?.mealTitles || ['Meal 1', 'Meal 2', 'Meal 3', 'Meal 4'];
+    const slot = Math.max(0, Math.min(3, mealSlot));
+    const { meal, chosen, phase } = mealForSlot(slot);
+    if (!meal) {
+      return cardShell('🍽️', "Today's meals", `<div class="ai-card-empty">No meals set for your ${escapeHtml(phase)} phase yet. Open Meal Plan to choose them.</div>`, 'nutrition');
+    }
+    const body = `
+      <div class="ai-meal" data-no-swipe>
+        <div class="ai-meal-slot">${escapeHtml(titles[slot] || ('Meal ' + (slot + 1)))}${chosen ? '' : ' · suggested'}</div>
+        <div class="ai-meal-name">${escapeHtml(meal.name)}</div>
+        <div class="ai-meal-tags">${meal.cuisine ? `<span>${escapeHtml(meal.cuisine)}</span>` : ''}${meal.category ? `<span>${escapeHtml(meal.category)}</span>` : ''}</div>
+        <div class="ai-meal-macros">
+          <span class="mm mm-cal">${meal.calories} cal</span>
+          <span class="mm mm-p">${meal.protein}g P</span>
+          <span class="mm mm-c">${meal.carbs}g C</span>
+          <span class="mm mm-f">${meal.fats}g F</span>
+        </div>
+        <div class="ai-card-nav">
+          <button class="ai-card-arrow" type="button" data-meal-prev aria-label="Previous meal">‹</button>
+          <div class="ai-card-dots">${[0, 1, 2, 3].map(i => `<span class="${i === slot ? 'on' : ''}"></span>`).join('')}</div>
+          <button class="ai-card-arrow" type="button" data-meal-next aria-label="Next meal">›</button>
+        </div>
+      </div>`;
+    return cardShell('🍽️', "Today's meals", body, 'nutrition');
+  }
+
+  function buildWorkoutCard() {
+    const ws = STATE.data.workout;
+    const day = STATE.currentWorkoutDay;
+    const phase = ws.currentPhase || 'recovery';
+    const week = ws.weekNumber || 1;
+    if (!day || day === 'Rest') {
+      return cardShell('🛌', 'Today: Rest day',
+        `<div class="ai-wk-rest">You're on a <b>rest day</b> — recovery is where the growth happens. Week ${week}, ${capitalize(phase)} phase.<div class="ai-wk-restsub">Stretch, walk, hydrate. 💧</div></div>`,
+        'workout');
+    }
+    const dayData = (APP_DATA.workout?.[phase]?.[day]) || null;
+    const exs = dayData?.exercises || [];
+    const body = `
+      <div class="ai-wk">
+        <div class="ai-wk-head"><span class="ai-wk-day">${escapeHtml(day)}</span><span class="ai-wk-meta">${escapeHtml(dayData?.focus || '')} · Week ${week}</span></div>
+        <div class="ai-wk-list">
+          ${exs.length ? exs.slice(0, 8).map(e => `<div class="ai-wk-ex"><span class="ai-wk-ex-name">${escapeHtml(e.name)}</span><span class="ai-wk-ex-reps">${escapeHtml(e.reps || '')}</span></div>`).join('') : '<div class="ai-card-empty">No exercises mapped for today.</div>'}
+          ${exs.length > 8 ? `<div class="ai-wk-more">+${exs.length - 8} more exercises</div>` : ''}
+        </div>
+      </div>`;
+    return cardShell('🏋️', "Today's workout", body, 'workout');
+  }
+
+  function buildFocusCard() {
+    const ds = STATE.data.dashboard;
+    const open = (ds.tasks || []).filter(t => !t.done).slice(0, 6);
+    const body = `
+      <div class="ai-focuscard">
+        ${ds.weeklyTopPriority ? `<div class="ai-focuscard-prio">⭐ ${escapeHtml(ds.weeklyTopPriority)}</div>` : ''}
+        ${open.length ? open.map(t => `<div class="ai-focuscard-task"><button class="ai-focuscard-check" type="button" data-fcheck="${t.id}" aria-label="Complete"></button><span>${escapeHtml(t.text)}</span></div>`).join('') : '<div class="ai-card-empty">No open tasks — you\'re clear. 🎯</div>'}
+      </div>`;
+    return cardShell('🎯', 'Focus', body);
+  }
+
+  function buildMoneyCard() {
+    const nw = STATE.data.metrics?.networth || [];
+    const last = nw.length ? nw[nw.length - 1].value : null;
+    const delta = nw.length >= 2 ? last - nw[0].value : 0;
+    const fmt = (v) => window.formatCurrency ? window.formatCurrency(v) : ('$' + Math.round(v).toLocaleString());
+    const body = (last != null)
+      ? `<div class="ai-money"><div class="ai-money-val">${fmt(last)}</div><div class="ai-money-sub">${nw.length >= 2 ? `${delta >= 0 ? '▲ +' : '▼ '}${fmt(Math.abs(delta))} since first log` : 'net worth logged'}</div></div>`
+      : `<div class="ai-card-empty">No net worth logged yet. Say “log my net worth 52000,” or open Investments.</div>`;
+    return cardShell('💰', 'Money', body, 'wealth');
+  }
+
+  function buildConnectCard() {
+    const rls = STATE.data.relationship || {};
+    const fam = STATE.data.family?.members || [];
+    const fr = STATE.data.friends?.members || [];
+    const dates = (rls.dates || []).slice(0, 3);
+    const people = [];
+    if (rls.name) people.push({ n: rls.name, u: rls.updates?.[0]?.text || 'No recent note' });
+    fam.slice(0, 2).forEach(m => people.push({ n: m.name, u: m.updates?.[0]?.text || 'No recent note' }));
+    fr.slice(0, 2).forEach(m => people.push({ n: m.name, u: m.updates?.[0]?.text || 'No recent note' }));
+    const body = `
+      <div class="ai-connectcard">
+        ${dates.length ? `<div class="ai-connect-dates">${dates.map(d => `<span class="ai-connect-date">📅 ${escapeHtml(d.label)} · ${escapeHtml((d.date || '').slice(5))}</span>`).join('')}</div>` : ''}
+        ${people.length ? people.map(p => `<div class="ai-connect-person"><b>${escapeHtml(p.n)}</b><span>${escapeHtml(p.u)}</span></div>`).join('') : '<div class="ai-card-empty">Add people in the People section to track who to reach out to. 💕</div>'}
+      </div>`;
+    return cardShell('💕', 'Connect', body, 'relationship');
+  }
+
+  function buildCard(key) {
+    switch (key) {
+      case 'meal': return buildMealCard();
+      case 'workout': return buildWorkoutCard();
+      case 'focus': return buildFocusCard();
+      case 'money': return buildMoneyCard();
+      case 'connect': return buildConnectCard();
+      default: return '';
+    }
+  }
+
+  function showCard(key, opts) {
+    opts = opts || {};
+    if (typeof getCurrentPage === 'function' && getCurrentPage() !== 'dashboard') navigateTo('dashboard');
+    const stage = document.getElementById('onyxCardStage');
+    if (!stage || !buildCard(key)) return;
+    if (key === 'meal' && !opts.keepSlot) mealSlot = nextMealSlot();
+    stage.innerHTML = buildCard(key);
+    stage.classList.add('show');
+    wireCard(key, stage);
+    if (!opts.noScroll) stage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function wireCard(key, stage) {
+    const close = stage.querySelector('[data-card-close]');
+    if (close) close.addEventListener('click', () => { stage.classList.remove('show'); stage.innerHTML = ''; });
+    const open = stage.querySelector('[data-open]');
+    if (open) open.addEventListener('click', () => navigateTo(open.dataset.open));
+
+    if (key === 'meal') {
+      const prev = stage.querySelector('[data-meal-prev]');
+      const next = stage.querySelector('[data-meal-next]');
+      const go = (d) => { mealSlot = (mealSlot + d + 4) % 4; if (window.haptic) window.haptic('tap'); showCard('meal', { keepSlot: true, noScroll: true }); };
+      if (prev) prev.addEventListener('click', () => go(-1));
+      if (next) next.addEventListener('click', () => go(1));
+      // swipe between meals
+      const card = stage.querySelector('.ai-meal');
+      if (card) {
+        let sx = 0;
+        card.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+        card.addEventListener('touchend', e => {
+          const dx = e.changedTouches[0].clientX - sx;
+          if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+        }, { passive: true });
+      }
+    }
+
+    if (key === 'focus') {
+      stage.querySelectorAll('[data-fcheck]').forEach(b => b.addEventListener('click', () => {
+        STATE.toggleTask(b.dataset.fcheck);
+        if (window.haptic) window.haptic('success');
+        showCard('focus', { noScroll: true });
+        renderToday();
+      }));
+    }
   }
 
   /* ─────────────────────────────────────────────────────────────
