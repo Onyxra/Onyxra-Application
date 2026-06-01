@@ -4747,10 +4747,44 @@ body.onyx-gate-lock { overflow: hidden !important; }
 .onyx-gate-enter:active { transform: translateY(0); }
 
 .onyx-gate-foot {
-  margin: 30px 0 0;
+  margin: 18px 0 0;
   font-family: 'Rajdhani', sans-serif;
   font-size: 11px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase;
   color: rgba(231,240,255,0.28);
+}
+
+/* ── Passcode gate ── */
+.onyx-gate-auth {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px auto 0; width: min(320px, 82vw);
+}
+.onyx-gate-pw {
+  flex: 1; min-width: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,176,46,0.32);
+  border-radius: 12px;
+  padding: 13px 15px;
+  color: #f1e9dc;
+  font-family: 'DM Sans', sans-serif; font-size: 15px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.onyx-gate-pw::placeholder { color: rgba(231,240,255,0.4); }
+.onyx-gate-pw:focus { border-color: rgba(255,176,46,0.75); background: rgba(255,176,46,0.08); }
+.onyx-gate-auth--err .onyx-gate-pw { border-color: rgba(255,94,71,0.85); animation: gateShake 0.4s ease; }
+@keyframes gateShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+/* The enter button becomes a compact gold icon button beside the input */
+.onyx-gate-auth .onyx-gate-enter {
+  flex: 0 0 auto; width: 50px; height: 50px; padding: 0; gap: 0;
+  display: grid; place-items: center;
+}
+.onyx-gate-err {
+  min-height: 18px; margin: 12px 0 0;
+  font-size: 12.5px; color: #ff9a8a; text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

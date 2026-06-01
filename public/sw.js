@@ -7,7 +7,7 @@
  * On install: purges ALL old caches (kills old Koltyn OS cache too).
  */
 
-const CACHE_NAME = 'onyxra-static-v3';
+const CACHE_NAME = 'onyxra-static-v4';
 const FONT_CACHE = 'onyxra-fonts-v1';
 
 const STATIC_ASSETS = [

@@ -17,9 +17,15 @@ import { useEffect, useRef, useState } from 'react';
  */
 const OWNER_NAME = 'Koltyn Parsons';
 
+// Frontend passcode gate. Set NEXT_PUBLIC_ONYXRA_PASSCODE in Vercel to change
+// it; falls back to a default so the gate works out of the box.
+const PASSCODE = (process.env.NEXT_PUBLIC_ONYXRA_PASSCODE || 'onyxra').trim();
+
 export default function LandingGate() {
   const [phase, setPhase] = useState('boot'); // 'boot' | 'show' | 'leaving' | 'hidden'
   const [name, setName] = useState('');
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(false);
 
   const gateRef = useRef(null);
   const canvasRef = useRef(null);
@@ -29,13 +35,13 @@ export default function LandingGate() {
   const rippleRef = useRef(null); // set inside the canvas effect
 
   useEffect(() => {
-    let entered = false;
+    let unlocked = false;
     try {
-      entered = sessionStorage.getItem('onyxra_entered') === '1';
+      unlocked = localStorage.getItem('onyxra_unlocked') === '1';
     } catch {
-      /* sessionStorage may be unavailable */
+      /* storage may be unavailable */
     }
-    if (entered) {
+    if (unlocked) {
       setPhase('hidden');
     } else {
       setName(OWNER_NAME);
@@ -317,8 +323,13 @@ export default function LandingGate() {
   }
 
   function enter() {
+    if (pw.trim() !== PASSCODE) {
+      setErr(true);
+      try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {}
+      return;
+    }
     try {
-      sessionStorage.setItem('onyxra_entered', '1');
+      localStorage.setItem('onyxra_unlocked', '1');
     } catch {
       /* ignore */
     }
@@ -369,12 +380,28 @@ export default function LandingGate() {
           </p>
         )}
 
-        <button type="button" className="onyx-gate-enter" onClick={enter}>
-          <span>Enter</span>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </button>
+        <form
+          className={`onyx-gate-auth${err ? ' onyx-gate-auth--err' : ''}`}
+          onSubmit={(e) => { e.preventDefault(); enter(); }}
+        >
+          <input
+            type="password"
+            className="onyx-gate-pw"
+            placeholder="Enter passcode"
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); if (err) setErr(false); }}
+            autoComplete="current-password"
+            aria-label="Passcode"
+            autoFocus
+          />
+          <button type="submit" className="onyx-gate-enter" aria-label="Unlock">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
+        </form>
+
+        <p className="onyx-gate-err" role="alert">{err ? 'Incorrect passcode — try again.' : ''}</p>
 
         <p className="onyx-gate-foot">Private workspace · Not for public access</p>
       </div>
