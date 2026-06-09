@@ -402,6 +402,7 @@ export default function Home() {
 
       {/* ══ SCRIPTS — loaded in order ══ */}
       <Script src="/js/data.js" strategy="afterInteractive" />
+      <Script src="/js/db.js" strategy="afterInteractive" />
       <Script src="/js/state.js" strategy="afterInteractive" />
       <Script src="/js/app.js" strategy="afterInteractive" />
       <Script src="/js/pages/dashboard.js" strategy="afterInteractive" />
