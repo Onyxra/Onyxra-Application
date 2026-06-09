@@ -10,12 +10,10 @@ import { useEffect, useRef, useState } from 'react';
  * pointer — mouse hover on desktop, touch-drag on mobile: the orb leans
  * toward your pointer, bulges where you point, and ripples when you tap.
  *
- * PRIVACY NOTE: the owner's name is injected CLIENT-SIDE ONLY (after mount),
- * so it is never in the server-rendered HTML / page source. Combined with the
- * site-wide noindex (robots meta + robots.txt + X-Robots-Tag), the name stays
- * untied to this site for search engines and simple scrapers.
+ * PRIVACY NOTE: no owner name is rendered or kept in the source — the tagline is
+ * a generic "A personal AI". Combined with the site-wide noindex (robots meta +
+ * robots.txt + X-Robots-Tag), the workspace stays untied to any identity.
  */
-const OWNER_NAME = 'Koltyn Parsons';
 
 // Frontend passcode gate. Set NEXT_PUBLIC_ONYXRA_PASSCODE in Vercel to change
 // it; falls back to a default so the gate works out of the box.
@@ -23,7 +21,6 @@ const PASSCODE = (process.env.NEXT_PUBLIC_ONYXRA_PASSCODE || 'onyxra').trim();
 
 export default function LandingGate() {
   const [phase, setPhase] = useState('boot'); // 'boot' | 'show' | 'leaving' | 'hidden'
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [errMsg, setErrMsg] = useState('');
@@ -46,7 +43,6 @@ export default function LandingGate() {
       setPhase('hidden');
     } else {
       try { setEmail(localStorage.getItem('onyxra_email') || ''); } catch { /* storage may be unavailable */ }
-      setName(OWNER_NAME);
       setPhase('show');
       document.body.classList.add('onyx-gate-lock');
     }
@@ -383,11 +379,9 @@ export default function LandingGate() {
           <span />
         </div>
 
-        {name && (
-          <p className="onyx-gate-for">
-            <span className="onyx-gate-name">{name}</span>&rsquo;s&nbsp;personal&nbsp;AI
-          </p>
-        )}
+        <p className="onyx-gate-for">
+          A&nbsp;<span className="onyx-gate-name">personal&nbsp;AI</span>
+        </p>
 
         <form
           noValidate
