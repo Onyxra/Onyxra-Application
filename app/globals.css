@@ -4784,6 +4784,7 @@ body.onyx-gate-lock { overflow: hidden !important; }
   justify-content: center;
   padding: 15px 24px;
 }
+.onyx-gate-enter:disabled { opacity: 0.6; cursor: wait; box-shadow: none; transform: none; }
 .onyx-gate-err {
   min-height: 18px; margin: 12px 0 0;
   font-size: 12.5px; color: #ff9a8a; text-align: center;

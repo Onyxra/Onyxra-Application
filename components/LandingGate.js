@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getSupabase } from '../lib/supabase';
 
 /**
  * ONYXRA — Landing Gate
@@ -24,6 +25,7 @@ export default function LandingGate() {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [errMsg, setErrMsg] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const gateRef = useRef(null);
   const canvasRef = useRef(null);
@@ -320,18 +322,9 @@ export default function LandingGate() {
     }
   }
 
-  function enter() {
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!emailOk) {
-      setErrMsg('Enter a valid email.');
-      try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {}
-      return;
-    }
-    if (pw.trim() !== PASSCODE) {
-      setErrMsg('Incorrect passcode — try again.');
-      try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {}
-      return;
-    }
+  const buzz = () => { try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {} };
+
+  function unlock() {
     try {
       localStorage.setItem('onyxra_email', email.trim());
       localStorage.setItem('onyxra_unlocked', '1');
@@ -341,6 +334,56 @@ export default function LandingGate() {
     document.body.classList.remove('onyx-gate-lock');
     setPhase('leaving');
     setTimeout(() => setPhase('hidden'), 750);
+  }
+
+  async function enter() {
+    if (busy) return;
+    const mail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      setErrMsg('Enter a valid email.');
+      buzz();
+      return;
+    }
+    if (!pw) {
+      setErrMsg('Enter your password.');
+      buzz();
+      return;
+    }
+
+    const supabase = getSupabase();
+
+    // Primary path: authenticate against the Supabase auth user.
+    if (supabase) {
+      setBusy(true);
+      setErrMsg('');
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email: mail, password: pw });
+        if (error) {
+          setErrMsg(error.message || 'Sign-in failed — check your email and password.');
+          buzz();
+          setBusy(false);
+          return;
+        }
+      } catch (e) {
+        setErrMsg((e && e.message) || 'Could not reach the sign-in service.');
+        buzz();
+        setBusy(false);
+        return;
+      }
+      setBusy(false);
+      unlock();
+      return;
+    }
+
+    // Fallback: Supabase isn't configured — accept the local passcode so the
+    // workspace is never bricked. (Set the NEXT_PUBLIC_SUPABASE_* env vars in
+    // Vercel to switch this to real account auth.)
+    if (pw.trim() !== PASSCODE) {
+      setErrMsg('Incorrect passcode — try again.');
+      buzz();
+      return;
+    }
+    unlock();
   }
 
   if (phase === 'boot' || phase === 'hidden') return null;
@@ -380,7 +423,7 @@ export default function LandingGate() {
         </div>
 
         <p className="onyx-gate-for">
-          A&nbsp;<span className="onyx-gate-name">personal&nbsp;AI</span>
+          <span className="onyx-gate-name">A&nbsp;personal&nbsp;AI</span>
         </p>
 
         <form
@@ -402,17 +445,19 @@ export default function LandingGate() {
           <input
             type="password"
             className="onyx-gate-field"
-            placeholder="Passcode"
+            placeholder="Password"
             value={pw}
             onChange={(e) => { setPw(e.target.value); if (errMsg) setErrMsg(''); }}
             autoComplete="current-password"
-            aria-label="Passcode"
+            aria-label="Password"
           />
-          <button type="submit" className="onyx-gate-enter">
-            <span>Enter</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
+          <button type="submit" className="onyx-gate-enter" disabled={busy} aria-busy={busy}>
+            <span>{busy ? 'Signing in' : 'Enter'}</span>
+            {!busy && (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            )}
           </button>
         </form>
 
