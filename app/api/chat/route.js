@@ -58,6 +58,24 @@ NO block. Supported actions (use only these types and fields):
   {"type":"navigate","page":"workout"}                 // dashboard|workout|nutrition|wealth|business|passions|relationship|family|friends|settings
   {"type":"show_card","card":"meal"}                    // pop a live card on the dashboard: meal|workout|focus|money|connect
 
+  --- MEAL PLANNING & NUTRITION ---
+  {"type":"create_recipe","name":"High-Protein Chicken Bowl","category":"Simple","cuisine":"American","calories":640,"protein":55,"carbs":58,"fats":18,"slot":"lunch","plan":true}
+        // Saves a reusable recipe to their meal library. category: Simple|Premade|Gourmet.
+        // slot (breakfast|lunch|dinner|snack) is OPTIONAL — include it to add the recipe to that slot's
+        // options; add "plan":true to also put it on today's plan. You may include an "ingredients" array
+        // of {"name","quantity","calories","protein","carbs","fats"} and the totals will be derived if you
+        // omit calories/protein/carbs/fats.
+  {"type":"plan_meal","name":"High-Protein Chicken Bowl","slot":"lunch","date":"2026-06-08"}
+        // Assigns an existing meal/recipe (match a name in savedRecipes or a base meal) to a slot. date optional → today.
+  {"type":"log_food","name":"Protein shake","calories":160,"protein":30,"carbs":4,"fats":2,"slot":"snack"}
+        // Quick-logs a one-off food to today's totals for a slot.
+  {"type":"set_nutrition_phase","phase":"cut"}          // cut | maintain | bulk
+
+When creating recipes or planning meals, FIT the user's nutrition.macroTargets and nutrition.goalPhase
+from the snapshot (hit protein especially). Don't duplicate a name already in nutrition.savedRecipes.
+Prefer whole-food-influenced ingredients. You may emit several create_recipe/plan_meal actions at once
+(e.g. "build me a full day of meals" → one recipe per slot, each fitting that slot's share of the macros).
+
 When the user asks "what's my next meal / today's workout / how's my money", prefer
 show_card so they get an interactive card, and keep your sentence short.
 

@@ -888,7 +888,21 @@ window.buildOnyxraSnapshot = function buildOnyxraSnapshot() {
     })),
     metrics: { weight: last(d.metrics?.weight), bodyfat: last(d.metrics?.bodyfat), networth: last(d.metrics?.networth) },
     workout: { todayDay: S.currentWorkoutDay, currentPhase: ws.currentPhase, weekNumber: ws.weekNumber, recentLogCount: (ws.log || []).length },
-    nutrition: { currentPhase: ns.currentPhase, macroTargets: window.computeMacros?.(ns.calcWeight, ns.calcGoal, ns.calcActivity) },
+    nutrition: (() => {
+      const ntKey = new Date().toISOString().slice(0, 10); // nutrition page keys mealPlan by UTC
+      const plan = (ns.mealPlan && ns.mealPlan[ntKey]) || {};
+      const recipes = (ns.userMeals || []).map(m => ({ name: m.name, kcal: m.totalCalories, p: m.totalProtein, c: m.totalCarbs, f: m.totalFats }));
+      const planned = ['breakfast', 'lunch', 'dinner', 'snack'].filter(k => plan[k]).length;
+      return {
+        goalPhase: ns.calcGoal || ns.currentPhase || 'maintain',
+        macroTargets: window.computeMacros?.(ns.calcWeight, ns.calcGoal, ns.calcActivity),
+        mealSlots: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
+        savedRecipes: recipes.slice(0, 30),
+        savedRecipeCount: recipes.length,
+        plannedMealsToday: planned,
+        quickAddsToday: (plan.quickAdds || []).length,
+      };
+    })(),
     business: { ventureCount: (bs.ventures || []).length, activeVenture: bs.ventures?.find(v => v.id === bs.activeVentureId)?.name || null },
     interests: { count: (ps.passions || []).length, active: ps.passions?.find(p => p.id === ps.activePassionId)?.name || null },
     family: { members: (fs.members || []).map(m => ({ name: m.name, role: m.role, latestUpdate: m.updates?.[0]?.text || null })) },
@@ -946,6 +960,36 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
                           || (S.data.habits?.items || []).find(h => norm(h.name).includes(norm(name)) && norm(name));
   const findPerson = (list, name) => (list || []).find(m => norm(m.name) === norm(name))
                                  || (list || []).find(m => norm(name) && norm(m.name).includes(norm(name)));
+
+  /* ── Nutrition helpers (meal planning / recipes) ── */
+  const NT_SLOT_KEYS = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const ntSlotIndex = (s) => {
+    if (s == null || s === '') return null;
+    const n = norm(s);
+    const named = { breakfast: 0, lunch: 1, dinner: 2, snack: 3, '0': 0, '1': 1, '2': 2, '3': 3 };
+    if (n in named) return named[n];
+    const num = parseInt(n, 10);
+    return (num >= 0 && num <= 3) ? num : null;
+  };
+  // Match the nutrition page's date key (it keys mealPlan by UTC via toISOString).
+  const ntToday = () => new Date().toISOString().slice(0, 10);
+  const ntFindMealId = (name) => {
+    const q = norm(name);
+    if (!q) return null;
+    const ums = S.data.nutrition?.userMeals || [];
+    const um = ums.find(m => norm(m.name) === q) || ums.find(m => norm(m.name).includes(q));
+    if (um) return um.id;
+    const phases = (window.APP_DATA?.nutrition?.meals) || {};
+    for (const slots of Object.values(phases)) {
+      for (const slotMeals of (slots || [])) {
+        for (const m of (slotMeals || [])) {
+          if (norm(m.name) === q || norm(m.name).includes(q)) return 'base_' + m.name.replace(/\s+/g, '_').toLowerCase();
+        }
+      }
+    }
+    return null;
+  };
+
   let nav = null;
 
   for (const a of actions) {
@@ -1025,6 +1069,80 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
           if (['meal', 'workout', 'focus', 'money', 'connect'].includes(c) && typeof window.onyxShowCard === 'function') {
             setTimeout(() => window.onyxShowCard(c), 350);
             out.push({ icon: '🃏', label: 'Showing ' + c });
+          }
+          break;
+        }
+        case 'create_recipe':
+        case 'create_meal':
+        case 'add_recipe': {
+          if (!a.name || !S.saveUserMeal) break;
+          const cat = ['Simple', 'Premade', 'Gourmet'].find(c => norm(c) === norm(a.category)) || 'Simple';
+          const ingredients = Array.isArray(a.ingredients) ? a.ingredients.map(ing => ({
+            _name: String(ing.name || ing._name || 'Item'),
+            quantity: +ing.quantity || 1,
+            calories: Math.round(+ing.calories || 0),
+            protein: Math.round(+ing.protein || 0),
+            carbs: Math.round(+ing.carbs || 0),
+            fats: Math.round(+ing.fats || 0),
+          })) : [];
+          const sum = ingredients.reduce((t, i) => ({ c: t.c + i.calories, p: t.p + i.protein, cb: t.cb + i.carbs, f: t.f + i.fats }), { c: 0, p: 0, cb: 0, f: 0 });
+          const meal = {
+            name: String(a.name).slice(0, 80),
+            category: cat,
+            cuisine: a.cuisine ? String(a.cuisine).slice(0, 40) : '',
+            ingredients,
+            slots: [],
+            totalCalories: Math.round(a.calories != null ? +a.calories : sum.c),
+            totalProtein: Math.round(a.protein != null ? +a.protein : sum.p),
+            totalCarbs: Math.round(a.carbs != null ? +a.carbs : sum.cb),
+            totalFats: Math.round(a.fats != null ? +a.fats : sum.f),
+          };
+          S.saveUserMeal(meal);
+          const csi = ntSlotIndex(a.slot);
+          if (csi != null && meal.id && S.setSlotOptions) {
+            const ids = [...(S.data.nutrition.slotOptions?.[csi] || [])];
+            if (!ids.includes(meal.id)) { ids.push(meal.id); S.setSlotOptions(csi, ids); }
+            if ((a.plan === true || a.assign === true) && S.assignMealToSlot) S.assignMealToSlot(ntToday(), NT_SLOT_KEYS[csi], meal.id);
+          }
+          out.push({ icon: '🍽️', label: 'Recipe: ' + meal.name });
+          break;
+        }
+        case 'plan_meal':
+        case 'assign_meal': {
+          const psi = ntSlotIndex(a.slot);
+          const pid = a.mealId || ntFindMealId(a.name || a.meal);
+          if (psi != null && pid && S.assignMealToSlot) {
+            if (S.setSlotOptions) {
+              const ids = [...(S.data.nutrition.slotOptions?.[psi] || [])];
+              if (!ids.includes(pid)) { ids.push(pid); S.setSlotOptions(psi, ids); }
+            }
+            S.assignMealToSlot(a.date || ntToday(), NT_SLOT_KEYS[psi], pid);
+            out.push({ icon: '🍽️', label: 'Planned ' + (a.name || a.meal || 'meal') + ' · ' + NT_SLOT_KEYS[psi] });
+          }
+          break;
+        }
+        case 'log_food':
+        case 'quick_add_food': {
+          if ((a.name || a.calories != null) && S.addQuickAdd) {
+            const lsi = ntSlotIndex(a.slot);
+            const key = lsi != null ? NT_SLOT_KEYS[lsi] : 'snack';
+            S.addQuickAdd(a.date || ntToday(), key, {
+              name: String(a.name || 'Food').slice(0, 60),
+              calories: Math.round(+a.calories || 0),
+              protein: Math.round(+a.protein || 0),
+              carbs: Math.round(+a.carbs || 0),
+              fats: Math.round(+a.fats || 0),
+            });
+            out.push({ icon: '🍴', label: 'Logged ' + (a.name || 'food') });
+          }
+          break;
+        }
+        case 'set_nutrition_phase': {
+          const ph = ['cut', 'maintain', 'bulk'].find(p => norm(p) === norm(a.phase || a.value || a.goal));
+          if (ph && S.setNutritionPhase) {
+            S.data.nutrition.calcGoal = ph;
+            S.setNutritionPhase(ph);
+            out.push({ icon: '🎯', label: 'Nutrition phase: ' + ph });
           }
           break;
         }

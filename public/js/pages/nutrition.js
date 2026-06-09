@@ -305,7 +305,10 @@ window.registerPage('nutrition', function initNutrition() {
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
             ${selectedId ? `<span style="font-size:10px;color:var(--accent);font-family:'Rajdhani',sans-serif;font-weight:700">Selected ✓</span>` : ''}
-            <button class="slot-quick-add-btn" data-slot-key="${slotKey}" style="background:none;border:1px dashed var(--border);border-radius:7px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:0.4px;padding:4px 9px;white-space:nowrap">+ Quick Add</button>
+            <div style="display:flex;gap:5px">
+              <button class="slot-ai-btn" data-slot-idx="${mi}" data-slot-key="${slotKey}" style="background:none;border:1px solid var(--accent);border-radius:7px;color:var(--accent);font-size:11px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:0.4px;padding:4px 9px;white-space:nowrap">✦ AI</button>
+              <button class="slot-quick-add-btn" data-slot-key="${slotKey}" style="background:none;border:1px dashed var(--border);border-radius:7px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:0.4px;padding:4px 9px;white-space:nowrap">+ Quick Add</button>
+            </div>
           </div>
         </div>
         <div class="meal-options-scroll" id="slot-scroll-${mi}"></div>
@@ -337,6 +340,16 @@ window.registerPage('nutrition', function initNutrition() {
       /* Quick add open modal */
       card.querySelector('.slot-quick-add-btn').addEventListener('click', () => {
         openQuickAddModal(slotKey);
+      });
+
+      /* AI: build a meal for this slot that fits its macro target */
+      const slotAiBtn = card.querySelector('.slot-ai-btn');
+      if (slotAiBtn) slotAiBtn.addEventListener('click', () => {
+        const t = slotTargets[mi];
+        aiNutritionAsk(
+          `Invent a new ${title} recipe that fits roughly ${t.calories} kcal, ${t.protein}g protein, ${t.carbs}g carbs and ${t.fats}g fat for my ${ns.calcGoal || 'maintain'} phase. Use whole-food-influenced ingredients. Create it as a recipe and add it to my ${slotKey} slot for today (set plan:true), then tell me what it is in one sentence.`,
+          slotAiBtn
+        );
       });
 
       const list = card.querySelector(`#slot-scroll-${mi}`);
@@ -989,9 +1002,12 @@ window.registerPage('nutrition', function initNutrition() {
     const meals = STATE.data.nutrition.userMeals || [];
 
     el.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
         <div class="section-label" style="margin:0">Saved Meals</div>
-        <button id="mbNewMeal" class="day-tab active" style="padding:5px 14px;font-size:12px">+ New Meal</button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button id="mbAiMeal" class="day-tab" style="padding:5px 12px;font-size:12px;border-color:var(--accent);color:var(--accent)">✦ AI Recipe</button>
+          <button id="mbNewMeal" class="day-tab active" style="padding:5px 14px;font-size:12px">+ New Meal</button>
+        </div>
       </div>
       ${meals.length === 0
         ? `<div style="text-align:center;color:var(--muted);padding:18px 0;font-size:12px">No saved meals yet — tap New Meal to build one.</div>`
@@ -1015,6 +1031,14 @@ window.registerPage('nutrition', function initNutrition() {
     `;
 
     el.querySelector('#mbNewMeal').addEventListener('click', () => openMealBuilderModal(null));
+
+    const mbAi = el.querySelector('#mbAiMeal');
+    if (mbAi) mbAi.addEventListener('click', () => {
+      aiNutritionAsk(
+        `Invent a brand-new recipe for me that fits my macro targets and ${ns.calcGoal || 'maintain'} goal phase from the snapshot — high protein, whole-food-influenced ingredients, and a cuisine you think I'd enjoy. Save it as a recipe with name, category, cuisine, calories, protein, carbs and fats. Don't duplicate a recipe I already have. Tell me what you made in one sentence.`,
+        mbAi
+      );
+    });
 
     el.querySelectorAll('[data-edit]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1307,6 +1331,61 @@ window.registerPage('nutrition', function initNutrition() {
     Object.keys(mp).forEach(k => { if (k < cutoff) { delete mp[k]; pruned = true; } });
     if (pruned) STATE.save();
   }());
+
+  /* ══════════════════════════════════════════════════════════════
+     AI WIRING — let Onyxra build recipes & plan meals from this page.
+     Mirrors the journal "reflect" call: POST /api/chat, parse the
+     agentic action block, apply it (which mutates STATE and fires
+     onyxra:state-changed), then the listener below re-renders.
+  ══════════════════════════════════════════════════════════════ */
+  async function aiNutritionAsk(message, btnEl) {
+    let restore = null;
+    if (btnEl) { restore = btnEl.textContent; btnEl.disabled = true; btnEl.textContent = '✦ …'; }
+    if (window.toast) window.toast('Onyxra is building it…', { type: 'ai', duration: 1800 });
+    if (window.haptic) window.haptic('tap');
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: message }],
+          snapshot: window.buildOnyxraSnapshot ? window.buildOnyxraSnapshot() : {},
+          capture: true, page: 'nutrition',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { if (window.toast) window.toast(data.error || 'AI is unavailable right now.', { type: 'error', duration: 3200 }); return; }
+      const parsed = window.parseOnyxraActions ? window.parseOnyxraActions(data.reply || '') : { clean: data.reply, actions: [] };
+      const chips = window.applyOnyxraActions ? window.applyOnyxraActions(parsed.actions || []) : [];
+      const msg = (parsed.clean || '').trim();
+      if (chips && chips.length) {
+        if (window.haptic) window.haptic('success');
+        if (window.toast) window.toast(msg ? msg.slice(0, 100) : chips.map(c => c.label).join(' · ').slice(0, 100), { type: 'success', duration: 3200 });
+      } else {
+        if (window.toast) window.toast(msg ? msg.slice(0, 110) : 'No changes were made.', { type: 'info', duration: 3400 });
+      }
+    } catch (e) {
+      if (window.toast) window.toast('AI error: ' + e.message, { type: 'error', duration: 3200 });
+    } finally {
+      if (btnEl) { btnEl.disabled = false; if (restore != null) btnEl.textContent = restore; }
+    }
+  }
+
+  /* Re-render the meal surfaces whenever nutrition state changes (AI, quick capture). */
+  window.__renderNutrition = function () {
+    try {
+      if (document.getElementById('mealsGrid')) renderPhase();
+      if (document.getElementById('slotCustomizerSection')) renderSlotCustomizer();
+      if (document.getElementById('mealBuilderSection')) renderMealBuilder();
+    } catch (e) {}
+  };
+  if (!window.__onyxNutritionListener) {
+    window.__onyxNutritionListener = true;
+    window.addEventListener('onyxra:state-changed', () => {
+      if (document.getElementById('mealsGrid')) {
+        try { window.__renderNutrition(); } catch (e) {}
+      }
+    });
+  }
 
   updateDateNav();
 });
