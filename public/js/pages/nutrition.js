@@ -829,6 +829,8 @@ window.registerPage('nutrition', function initNutrition() {
     if (!el) return;
     const CATS = ['All','Proteins','Vegetables','Fruits','Grains & Breads','Dairy','Fats & Oils','Condiments','Snacks','Beverages'];
     const foods = filterFoods(foodLibFilter.query, foodLibFilter.category, foodLibFilter.type);
+    // Surface your own foods (added via AI or the modal) first so they're visible above the 90+ base items.
+    foods.sort((a, b) => (a.createdAt ? 0 : 1) - (b.createdAt ? 0 : 1));
 
     el.innerHTML = `
       <div class="section-label" style="margin-bottom:4px">Food Library</div>
@@ -863,7 +865,10 @@ window.registerPage('nutrition', function initNutrition() {
           </div>`).join('')}
       </div>
       ${foods.length>40?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:10px">Showing 40 of ${foods.length} — refine search to narrow results</div>`:''}
-      <button id="flAddCustomBtn" class="day-tab" style="width:100%;padding:8px;font-size:12px">+ Add Custom Food</button>
+      <div style="display:flex;gap:8px">
+        <button id="flAiFood" class="day-tab" style="flex:1;padding:8px;font-size:12px;border-color:var(--accent);color:var(--accent)">✦ AI Food</button>
+        <button id="flAddCustomBtn" class="day-tab" style="flex:1;padding:8px;font-size:12px">+ Add Custom Food</button>
+      </div>
     `;
 
     el.querySelector('#flSearch').addEventListener('input', e => { foodLibFilter.query = e.target.value; renderFoodLibrary(); });
@@ -875,6 +880,14 @@ window.registerPage('nutrition', function initNutrition() {
       btn.addEventListener('click', e => { e.stopPropagation(); STATE.removeFoodItem(btn.dataset.fid); renderFoodLibrary(); });
     });
     el.querySelector('#flAddCustomBtn').addEventListener('click', () => openAddFoodModal());
+
+    const flAi = el.querySelector('#flAiFood');
+    if (flAi) flAi.addEventListener('click', () => {
+      aiNutritionAsk(
+        `Add a useful whole-food ingredient to my food library that fits my ${ns.calcGoal || 'maintain'} goal — pick something high-protein I likely don't already have. Use add_food with name, category, type (whole/brand), serving size + unit, and per-serving calories, protein, carbs and fats. Tell me what you added in one sentence.`,
+        flAi
+      );
+    });
   }
 
   function openAddFoodModal() {
@@ -1376,6 +1389,7 @@ window.registerPage('nutrition', function initNutrition() {
       if (document.getElementById('mealsGrid')) renderPhase();
       if (document.getElementById('slotCustomizerSection')) renderSlotCustomizer();
       if (document.getElementById('mealBuilderSection')) renderMealBuilder();
+      if (document.getElementById('foodLibrarySection')) renderFoodLibrary();
     } catch (e) {}
   };
   if (!window.__onyxNutritionListener) {

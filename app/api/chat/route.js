@@ -70,6 +70,10 @@ NO block. Supported actions (use only these types and fields):
   {"type":"log_food","name":"Protein shake","calories":160,"protein":30,"carbs":4,"fats":2,"slot":"snack"}
         // Quick-logs a one-off food to today's totals for a slot.
   {"type":"set_nutrition_phase","phase":"cut"}          // cut | maintain | bulk
+  {"type":"add_food","name":"Chicken Thigh","category":"Proteins","foodType":"whole","servingSize":100,"servingUnit":"g","calories":209,"protein":26,"carbs":0,"fats":11}
+        // Adds an ingredient to their Food Library (reusable in the Meal Builder). category: Proteins|Vegetables|
+        // Fruits|Grains & Breads|Dairy|Fats & Oils|Condiments|Snacks|Beverages. foodType: whole|brand (NOT "type").
+        // Macros are PER SERVING.
 
 When creating recipes or planning meals, FIT the user's nutrition.macroTargets and nutrition.goalPhase
 from the snapshot (hit protein especially). Don't duplicate a name already in nutrition.savedRecipes.

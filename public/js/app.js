@@ -1146,6 +1146,29 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
           }
           break;
         }
+        case 'add_food':
+        case 'add_ingredient': {
+          if (a.name && S.addFoodItem) {
+            const cats = ['Proteins', 'Vegetables', 'Fruits', 'Grains & Breads', 'Dairy', 'Fats & Oils', 'Condiments', 'Snacks', 'Beverages'];
+            const fcat = cats.find(c => norm(c) === norm(a.category)) || 'Proteins';
+            S.addFoodItem({
+              name: String(a.name).slice(0, 60),
+              brand: a.brand ? String(a.brand).slice(0, 40) : null,
+              category: fcat,
+              type: norm(a.foodType || a.kind) === 'brand' ? 'brand' : 'whole',
+              servingSize: +a.servingSize || 100,
+              servingUnit: a.servingUnit ? String(a.servingUnit).slice(0, 10) : 'g',
+              calories: Math.round(+a.calories || 0),
+              protein: Math.round(+a.protein || 0),
+              carbs: Math.round(+a.carbs || 0),
+              fats: Math.round(+a.fats || 0),
+              fiber: Math.round(+a.fiber || 0),
+              tags: [],
+            });
+            out.push({ icon: '🥦', label: 'Food: ' + a.name });
+          }
+          break;
+        }
         default: break;
       }
     } catch (e) { /* skip a single bad action, keep the rest */ }
