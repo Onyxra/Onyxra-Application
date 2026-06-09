@@ -24,8 +24,9 @@ const PASSCODE = (process.env.NEXT_PUBLIC_ONYXRA_PASSCODE || 'onyxra').trim();
 export default function LandingGate() {
   const [phase, setPhase] = useState('boot'); // 'boot' | 'show' | 'leaving' | 'hidden'
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [err, setErr] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
 
   const gateRef = useRef(null);
   const canvasRef = useRef(null);
@@ -44,6 +45,7 @@ export default function LandingGate() {
     if (unlocked) {
       setPhase('hidden');
     } else {
+      try { setEmail(localStorage.getItem('onyxra_email') || ''); } catch { /* storage may be unavailable */ }
       setName(OWNER_NAME);
       setPhase('show');
       document.body.classList.add('onyx-gate-lock');
@@ -323,12 +325,19 @@ export default function LandingGate() {
   }
 
   function enter() {
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!emailOk) {
+      setErrMsg('Enter a valid email.');
+      try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {}
+      return;
+    }
     if (pw.trim() !== PASSCODE) {
-      setErr(true);
+      setErrMsg('Incorrect passcode — try again.');
       try { if (navigator.vibrate) navigator.vibrate([0, 40, 30, 60]); } catch {}
       return;
     }
     try {
+      localStorage.setItem('onyxra_email', email.trim());
       localStorage.setItem('onyxra_unlocked', '1');
     } catch {
       /* ignore */
@@ -381,27 +390,39 @@ export default function LandingGate() {
         )}
 
         <form
-          className={`onyx-gate-auth${err ? ' onyx-gate-auth--err' : ''}`}
+          noValidate
+          className={`onyx-gate-auth${errMsg ? ' onyx-gate-auth--err' : ''}`}
           onSubmit={(e) => { e.preventDefault(); enter(); }}
         >
           <input
-            type="password"
-            className="onyx-gate-pw"
-            placeholder="Enter passcode"
-            value={pw}
-            onChange={(e) => { setPw(e.target.value); if (err) setErr(false); }}
-            autoComplete="current-password"
-            aria-label="Passcode"
+            type="email"
+            className="onyx-gate-field"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); if (errMsg) setErrMsg(''); }}
+            autoComplete="email"
+            inputMode="email"
+            aria-label="Email"
             autoFocus
           />
-          <button type="submit" className="onyx-gate-enter" aria-label="Unlock">
+          <input
+            type="password"
+            className="onyx-gate-field"
+            placeholder="Passcode"
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); if (errMsg) setErrMsg(''); }}
+            autoComplete="current-password"
+            aria-label="Passcode"
+          />
+          <button type="submit" className="onyx-gate-enter">
+            <span>Enter</span>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </button>
         </form>
 
-        <p className="onyx-gate-err" role="alert">{err ? 'Incorrect passcode — try again.' : ''}</p>
+        <p className="onyx-gate-err" role="alert">{errMsg}</p>
 
         <p className="onyx-gate-foot">Private workspace · Not for public access</p>
       </div>
