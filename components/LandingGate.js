@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getSupabase } from '../lib/supabase';
 
 /**
  * ONYXRA — Landing Gate
@@ -350,40 +349,39 @@ export default function LandingGate() {
       return;
     }
 
-    const supabase = getSupabase();
+    setBusy(true);
+    setErrMsg('');
+    try {
+      // Sign in SERVER-SIDE — the Supabase credentials always exist there (the
+      // Vercel↔Supabase sync), even if the browser never gets the NEXT_PUBLIC_ vars.
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: mail, password: pw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setBusy(false);
 
-    // Primary path: authenticate against the Supabase auth user.
-    if (supabase) {
-      setBusy(true);
-      setErrMsg('');
-      try {
-        const { error } = await supabase.auth.signInWithPassword({ email: mail, password: pw });
-        if (error) {
-          setErrMsg(error.message || 'Sign-in failed — check your email and password.');
-          buzz();
-          setBusy(false);
-          return;
-        }
-      } catch (e) {
-        setErrMsg((e && e.message) || 'Could not reach the sign-in service.');
+      if (res.ok && data.ok) { unlock(); return; }
+
+      // Supabase not configured on the server → accept the local passcode so the
+      // workspace is never bricked.
+      if (data.fallback) {
+        if (pw.trim() === PASSCODE) { unlock(); return; }
+        setErrMsg('Incorrect passcode — try again.');
         buzz();
-        setBusy(false);
         return;
       }
-      setBusy(false);
-      unlock();
-      return;
-    }
 
-    // Fallback: Supabase isn't configured — accept the local passcode so the
-    // workspace is never bricked. (Set the NEXT_PUBLIC_SUPABASE_* env vars in
-    // Vercel to switch this to real account auth.)
-    if (pw.trim() !== PASSCODE) {
-      setErrMsg('Incorrect passcode — try again.');
+      setErrMsg(data.error || 'Sign-in failed — check your email and password.');
       buzz();
-      return;
+    } catch (e) {
+      setBusy(false);
+      // Network/route failure → don't lock the user out; allow the passcode.
+      if (pw.trim() === PASSCODE) { unlock(); return; }
+      setErrMsg('Could not reach the sign-in service.');
+      buzz();
     }
-    unlock();
   }
 
   if (phase === 'boot' || phase === 'hidden') return null;
