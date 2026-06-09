@@ -1317,16 +1317,18 @@ window.STATE = {
     const rid = id || ('r_' + Date.now());
     const wk = this.data.workout;
     if (!Array.isArray(wk.routines)) wk.routines = [];
-    wk.routines.push({
+    const routine = {
       id: rid, name, description: description || '',
       custom: true, repeatable: true,
       gradient: 'linear-gradient(135deg,#e07b15 0%,#a8550c 100%)',
       icon: '📋',
       createdAt: new Date().toISOString(),
       stages: [],
-    });
+    };
+    wk.routines.push(routine);
     if (!wk.activeRoutineId) wk.activeRoutineId = rid;
     this.save();
+    this._cloudUpsertRoutine(routine);
     return rid;
   },
 
@@ -1335,6 +1337,7 @@ window.STATE = {
     if (!r) return;
     Object.assign(r, data);
     this.save();
+    this._cloudUpsertRoutine(r);
   },
 
   duplicateRoutine(id) {
@@ -1342,8 +1345,11 @@ window.STATE = {
     const src = (wk.routines || []).find(r => r.id === id);
     if (!src) return;
     const newId = 'r_' + Date.now();
-    wk.routines.push(JSON.parse(JSON.stringify({ ...src, id: newId, name: src.name + ' (Copy)', createdAt: new Date().toISOString() })));
+    const copy = JSON.parse(JSON.stringify({ ...src, id: newId, name: src.name + ' (Copy)', createdAt: new Date().toISOString() }));
+    delete copy._cloudId;   // a copy is a brand-new cloud row
+    wk.routines.push(copy);
     this.save();
+    this._cloudUpsertRoutine(copy);
     return newId;
   },
 
@@ -1353,6 +1359,7 @@ window.STATE = {
     if (name !== undefined) r.name = name;
     if (description !== undefined) r.description = description;
     this.save();
+    this._cloudUpsertRoutine(r);
   },
 
   setActiveRoutine(id) {
@@ -1362,11 +1369,79 @@ window.STATE = {
 
   removeRoutine(id) {
     const wk = this.data.workout;
+    const removed = (wk.routines || []).find(r => r.id === id);
     wk.routines = (wk.routines || []).filter(r => r.id !== id);
     if (wk.activeRoutineId === id) {
       wk.activeRoutineId = wk.routines[0]?.id || null;
     }
     this.save();
+    if (removed && removed._cloudId && typeof window !== 'undefined' && window.OnyxDB) {
+      try { window.OnyxDB.remove('routines', removed._cloudId).catch(() => {}); } catch (e) { /* fail-soft */ }
+    }
+  },
+
+  /* ── Cloud routine sync (Supabase via OnyxDB server routes — fail-soft) ──
+     Custom routines live in the workout_routines table (owner_id = you). The
+     full routine object is stored in the row's `program` JSONB so reconstruction
+     is lossless; name/schedule/etc. are mirrored into columns for listing.
+     Every call no-ops gracefully when signed out / offline. */
+  _routineToRow(r) {
+    return {
+      name: r.name || 'Routine',
+      description: r.description || '',
+      icon: r.icon || '📋',
+      gradient: r.gradient || '',
+      schedule: Array.isArray(r.schedule) ? r.schedule : [],
+      stages: Array.isArray(r.stages) ? r.stages : [],
+      program: r,
+      sort_order: 0,
+    };
+  },
+  _cloudUpsertRoutine(routine) {
+    if (!routine || !routine.custom || typeof window === 'undefined' || !window.OnyxDB) return;
+    try {
+      const row = this._routineToRow(routine);
+      if (routine._cloudId) {
+        window.OnyxDB.update('routines', routine._cloudId, row).catch(() => {});
+      } else {
+        window.OnyxDB.create('routines', row).then((created) => {
+          if (created && created.id) { routine._cloudId = created.id; this.save(); }
+        }).catch(() => {});
+      }
+    } catch (e) { /* fail-soft */ }
+  },
+  async syncRoutinesFromCloud() {
+    if (typeof window === 'undefined' || !window.OnyxDB) return false;
+    let enabled = false;
+    try { enabled = await window.OnyxDB.cloudEnabled(); } catch (e) { return false; }
+    if (!enabled) return false;
+    let rows;
+    try { rows = await window.OnyxDB.list('routines'); } catch (e) { return false; }
+    if (!Array.isArray(rows)) return false;
+    const wk = this.data.workout;
+    if (!Array.isArray(wk.routines)) wk.routines = [];
+    let changed = false;
+    const byId = {};
+    wk.routines.forEach((r) => { byId[r.id] = r; });
+    // Pull cloud custom routines (owner rows carry a program payload, no builtin_key).
+    rows.filter((row) => !row.builtin_key && row.program).forEach((row) => {
+      const obj = row.program || {};
+      const lid = obj.id || ('r_' + row.id);
+      if (!byId[lid] || !byId[lid]._cloudId) changed = true;
+      byId[lid] = Object.assign({}, obj, { id: lid, custom: true, _cloudId: row.id });
+    });
+    wk.routines = Object.values(byId);
+    // Backfill: push any local-only custom routines up to the cloud once.
+    for (const r of wk.routines) {
+      if (r.custom && !r._cloudId) {
+        try {
+          const created = await window.OnyxDB.create('routines', this._routineToRow(r));
+          if (created && created.id) { r._cloudId = created.id; changed = true; }
+        } catch (e) { /* ignore one */ }
+      }
+    }
+    if (changed) this.save();
+    return changed;
   },
 
   /* ── Nutrition mutators ── */

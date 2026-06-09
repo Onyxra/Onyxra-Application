@@ -1431,6 +1431,14 @@ const dayData   = currentDay === 'Rest' ? REST_DAY : (currentPhaseData[currentDa
     }
     renderRoutineList();
 
+    /* Pull the user's custom routines from Supabase (defaults already shipped),
+       then refresh the list if anything new arrived. Fail-soft / no-op offline. */
+    if (STATE.syncRoutinesFromCloud) {
+      STATE.syncRoutinesFromCloud().then((changed) => {
+        if (changed && panel.querySelector('#routineList')) renderRoutineList();
+      }).catch(() => {});
+    }
+
     /* ── Exercise Library modal (created once, reused) ── */
     let liftHistoryOverlay = document.getElementById('liftHistoryOverlay');
     if (!liftHistoryOverlay) {
