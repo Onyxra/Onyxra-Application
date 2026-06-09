@@ -49,9 +49,9 @@ window.registerPage('workout', function initWorkout() {
   const PRESET_ROUTINES = [
     {
       id: 'jeff-nippard-ulppl',
-      name: 'Jeff Nippard UL+PPL',
+      name: 'The Bodybuilding Transformation System',
       eyebrow: 'Hypertrophy · Science-Based',
-      description: 'A research-backed Upper/Lower + Push/Pull/Legs hybrid for intermediate lifters. Progressive overload from technique-focused recovery phases into high-intensity ramping.',
+      description: 'Your 12-week Upper/Lower + Push/Pull/Legs system. Two blocks — a technique-focused Recovery phase, then a high-intensity Ramping phase that takes marked lifts to failure. Every lift carries two substitutions and detailed execution cues. Tap any exercise for notes & swaps.',
       gradient: 'linear-gradient(135deg, #ff6b35 0%, #c93c10 100%)',
       icon: '🔬',
       daysPerWeek: 5,
@@ -260,6 +260,13 @@ window.registerPage('workout', function initWorkout() {
     }
 
     panel.innerHTML = `
+      <div class="wk-program-banner" style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;flex:none;background:${activeRoutine?.gradient || 'linear-gradient(135deg,#ff6b35,#c93c10)'};box-shadow:0 5px 16px rgba(0,0,0,0.34)">${activeRoutine?.icon || '🏋️'}</div>
+        <div style="min-width:0">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent)">${activeRoutine?.eyebrow || 'Your Program'} · Default</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;line-height:1.15;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${activeRoutine?.name || 'Workout Program'}</div>
+        </div>
+      </div>
       <div class="card" style="margin-bottom:16px">
         <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
           <div class="card-title" style="display:flex;align-items:baseline;gap:8px">
