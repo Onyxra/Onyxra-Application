@@ -70,6 +70,9 @@ export default function Home() {
           <a className="drawer-nav-item" data-page="insights" href="#insights">
             <span className="drawer-nav-icon">📈</span><span>Insights</span>
           </a>
+          <a className="drawer-nav-item" data-page="goals" href="#goals">
+            <span className="drawer-nav-icon">🎯</span><span>Goals &amp; Targets</span>
+          </a>
 
           <div className="drawer-section-label">People</div>
           <a className="drawer-nav-item" data-page="relationship" href="#relationship">
@@ -151,6 +154,10 @@ export default function Home() {
           <a className="nav-item" data-page="insights" href="#insights">
             <span className="nav-icon">📈</span>
             <span className="nav-label">Insights</span>
+          </a>
+          <a className="nav-item" data-page="goals" href="#goals">
+            <span className="nav-icon">🎯</span>
+            <span className="nav-label">Goals &amp; Targets</span>
           </a>
 
           {/* ── PEOPLE ── */}
@@ -393,6 +400,11 @@ export default function Home() {
           <div className="page-inner" id="friends-inner"></div>
         </section>
 
+        {/* Goals & Targets */}
+        <section className="page" id="page-goals" data-accent="dashboard">
+          <div className="page-inner" id="goals-inner"></div>
+        </section>
+
         {/* Settings */}
         <section className="page" id="page-settings" data-accent="dashboard">
           <div className="page-inner" id="settings-inner"></div>
@@ -408,6 +420,7 @@ export default function Home() {
       <Script src="/js/pages/dashboard.js" strategy="afterInteractive" />
       <Script src="/js/pages/journal.js" strategy="afterInteractive" />
       <Script src="/js/pages/insights.js" strategy="afterInteractive" />
+      <Script src="/js/pages/goals.js" strategy="afterInteractive" />
       <Script src="/js/pages/nutrition.js" strategy="afterInteractive" />
       <Script src="/js/pages/workout.js" strategy="afterInteractive" />
       <Script src="/js/pages/business.js" strategy="afterInteractive" />

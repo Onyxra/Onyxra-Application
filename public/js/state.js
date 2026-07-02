@@ -205,6 +205,26 @@ function _defaultState() {
       bestStreak: 0,
       ringGoals: { focus: 3, body: 1, connect: 1 },   // tasks done, body actions, people touches
     },
+
+    /* ── Goals & Targets ──
+       The north-star engine: every big number being chased, across life areas.
+       Each goal: current vs target with a dated history. `metric` links a goal
+       to the metrics series (e.g. networth) so its current value auto-syncs. */
+    goals: {
+      items: [
+        { id: 'g_networth',  name: 'Net Worth',                    icon: '👑', category: 'wealth',       target: 5000000, current: 0,  unit: '$',    metric: 'networth', note: 'The $5M mountain. Every asset, every account.', history: [], createdAt: null },
+        { id: 'g_envosta',   name: 'Envosta Monthly Revenue',      icon: '🏗️', category: 'business',     target: 50000,   current: 0,  unit: '$/mo', metric: null,       note: 'Envosta to $50k/month.', history: [], createdAt: null },
+        { id: 'g_pullups',   name: 'Pull-Ups (max set)',           icon: '🤸', category: 'calisthenics', target: 20,      current: 0,  unit: 'reps', metric: null,       note: 'Strict, dead-hang to chin over bar.', history: [], createdAt: null },
+        { id: 'g_pushups',   name: 'Push-Ups (max set)',           icon: '💥', category: 'calisthenics', target: 50,      current: 0,  unit: 'reps', metric: null,       note: 'Chest to deck, full lockout.', history: [], createdAt: null },
+        { id: 'g_dips',      name: 'Dips (max set)',               icon: '🔻', category: 'calisthenics', target: 25,      current: 0,  unit: 'reps', metric: null,       note: 'Full depth, no kip.', history: [], createdAt: null },
+        { id: 'g_muscleup',  name: 'Muscle-Up',                    icon: '🚀', category: 'calisthenics', target: 1,       current: 0,  unit: 'reps', metric: null,       note: 'The first clean bar muscle-up.', history: [], createdAt: null },
+        { id: 'g_handstand', name: 'Handstand Hold',               icon: '🙃', category: 'calisthenics', target: 60,      current: 0,  unit: 'sec',  metric: null,       note: 'Freestanding, away from the wall.', history: [], createdAt: null },
+        { id: 'g_sing_songs',name: 'Songs Performance-Ready',      icon: '🎤', category: 'singing',      target: 10,      current: 0,  unit: 'songs',metric: null,       note: 'Could sing these cold, start to finish.', history: [], createdAt: null },
+        { id: 'g_sing_prac', name: 'Singing Practice Sessions',    icon: '🎙️', category: 'singing',      target: 100,     current: 0,  unit: 'sessions', metric: null,   note: 'Reps build the voice — log every session.', history: [], createdAt: null },
+        { id: 'g_gtr_songs', name: 'Guitar Songs Mastered',        icon: '🎸', category: 'guitar',       target: 10,      current: 0,  unit: 'songs',metric: null,       note: 'Full songs, clean, from memory.', history: [], createdAt: null },
+        { id: 'g_gtr_prac',  name: 'Guitar Practice Sessions',     icon: '🎼', category: 'guitar',       target: 100,     current: 0,  unit: 'sessions', metric: null,   note: 'Fingers on strings — log every session.', history: [], createdAt: null },
+      ],
+    },
   };
 }
 
@@ -273,25 +293,31 @@ window.STATE = {
       this._writeToLocal();
       return;
     }
+    const payload = {
+      dashboard: this.data.dashboard,
+      workout:   this.data.workout,
+      nutrition: this.data.nutrition,
+      business:  this.data.business,
+      passions:  this.data.passions,
+      family:       this.data.family        || { activeMemberId: null, members: [] },
+      friends:      this.data.friends       || { activeMemberId: null, members: [] },
+      relationship: this.data.relationship  || { name: '', icon: '💕', startDate: null, notes: '', updates: [], dates: [], giftIdeas: [] },
+      wealth:       this.data.wealth        || {},
+      journal:      this.data.journal       || { entries: [] },
+      habits:       this.data.habits        || { items: [] },
+      metrics:      this.data.metrics       || { weight: [], bodyfat: [], networth: [], mood: [] },
+      life:         this.data.life          || { streak: 0, lastActiveDay: null, bestStreak: 0, ringGoals: { focus: 3, body: 1, connect: 1 } },
+      goals:        this.data.goals         || { items: [] },
+    };
     try {
-      const { error } = await sb
-        .from('user_state')
-        .update({
-          dashboard: this.data.dashboard,
-          workout:   this.data.workout,
-          nutrition: this.data.nutrition,
-          business:  this.data.business,
-          passions:  this.data.passions,
-          family:       this.data.family        || { activeMemberId: null, members: [] },
-          friends:      this.data.friends       || { activeMemberId: null, members: [] },
-          relationship: this.data.relationship  || { name: '', icon: '💕', startDate: null, notes: '', updates: [], dates: [], giftIdeas: [] },
-          wealth:       this.data.wealth        || {},
-          journal:      this.data.journal       || { entries: [] },
-          habits:       this.data.habits        || { items: [] },
-          metrics:      this.data.metrics       || { weight: [], bodyfat: [], networth: [], mood: [] },
-          life:         this.data.life          || { streak: 0, lastActiveDay: null, bestStreak: 0, ringGoals: { focus: 3, body: 1, connect: 1 } },
-        })
-        .eq('user_id', _userId);
+      let { error } = await sb.from('user_state').update(payload).eq('user_id', _userId);
+      /* If the goals column hasn't been migrated yet, retry without it so the
+         rest of the state still reaches the cloud (goals stay in localStorage). */
+      if (error && /goals/i.test(error.message || '')) {
+        const { goals, ...withoutGoals } = payload;
+        ({ error } = await sb.from('user_state').update(withoutGoals).eq('user_id', _userId));
+        if (!error) console.warn('[STATE] Saved without goals — run the goals column migration.');
+      }
       if (error) throw error;
       console.log('[STATE] Saved to Supabase');
     } catch (err) {
@@ -345,6 +371,7 @@ window.STATE = {
               habits:       stateRow.habits        || _defaultState().habits,
               metrics:      stateRow.metrics       || _defaultState().metrics,
               life:         stateRow.life          || _defaultState().life,
+              goals:        stateRow.goals         || _defaultState().goals,
             };
             this._migrate();
             console.log('[STATE] Loaded from Supabase for user:', profile?.display_name || user.email);
@@ -455,6 +482,19 @@ window.STATE = {
         if (!p.blueprintType) p.blueprintType = p.id === 'music' ? 'music' : 'general';
         if (!p.blueprints) p.blueprints = [];
       });
+
+      /* Goals & Targets — seed on first run; heal partial shapes. */
+      if (!this.data.goals || !Array.isArray(this.data.goals.items)) {
+        this.data.goals = _defaultState().goals;
+      }
+      this.data.goals.items.forEach(g => {
+        if (!Array.isArray(g.history)) g.history = [];
+        if (g.current === undefined) g.current = 0;
+        if (!g.category) g.category = 'custom';
+      });
+
+      /* Personal bests cache (synced to Supabase when signed in). */
+      if (typeof wk.personalBests !== 'object' || Array.isArray(wk.personalBests) || !wk.personalBests) wk.personalBests = {};
   },
 
   /* ── Export / Import ── */
@@ -1230,7 +1270,59 @@ window.STATE = {
     if (!Array.isArray(s.logbook)) s.logbook = [];
     s.logbook.unshift({ date: new Date().toISOString(), ...entry });
     if (s.logbook.length > 200) s.logbook.length = 200;
+    this._trackPersonalBests(entry);
     this.save();
+    /* Cloud: mirror the session to workout_sessions (fail-soft, no-op offline). */
+    if (typeof window !== 'undefined' && window.OnyxDB) {
+      try {
+        window.OnyxDB.create('sessions', {
+          day_name: entry.dayName || entry.title || 'Workout',
+          phase: entry.phase || null,
+          week_number: s.weekNumber || null,
+          exercises: entry.exercises || [],
+          notes: entry.notes || '',
+        }).catch(() => {});
+      } catch (e) { /* fail-soft */ }
+    }
+  },
+
+  /* ── Personal bests ──
+     Every logged set feeds the PR engine: best estimated 1RM per exercise
+     (Epley: w × (1 + reps/30)) cached locally in workout.personalBests and
+     upserted to Supabase workout_personal_bests when it improves. */
+  _trackPersonalBests(entry) {
+    const s = this.data.workout;
+    if (typeof s.personalBests !== 'object' || !s.personalBests) s.personalBests = {};
+    (entry.exercises || []).forEach(ex => {
+      const name = ex && ex.name;
+      if (!name || !Array.isArray(ex.sets)) return;
+      let best = null;
+      ex.sets.forEach(set => {
+        const w = parseFloat(set.weight), r = parseInt(set.reps, 10);
+        if (!(w > 0) || !(r > 0)) return;
+        const e1rm = Math.round(w * (1 + r / 30) * 10) / 10;
+        if (!best || e1rm > best.est1RM) best = { weight: w, reps: r, est1RM: e1rm };
+      });
+      if (!best) return;
+      const prev = s.personalBests[name];
+      if (!prev || best.est1RM > (prev.est1RM || 0)) {
+        s.personalBests[name] = { ...best, date: new Date().toISOString() };
+        if (typeof window !== 'undefined' && window.OnyxDB) {
+          try {
+            window.OnyxDB.create('personal-bests', {
+              exercise: name,
+              weight: best.weight,
+              reps: best.reps,
+              est_one_rep_max: best.est1RM,
+              unit: 'lb',
+            }).catch(() => {});
+          } catch (e) { /* fail-soft */ }
+        }
+        if (typeof window !== 'undefined' && window.toast) {
+          try { window.toast(`🏆 New PR — ${name}: ${best.weight}×${best.reps}`, { type: 'success', duration: 3200 }); } catch (e) {}
+        }
+      }
+    });
   },
 
   deleteLogbookExercise(date, exName) {
@@ -1442,6 +1534,92 @@ window.STATE = {
     }
     if (changed) this.save();
     return changed;
+  },
+
+  /* ── Goals & Targets mutators ────────────────────────────────────
+     The engine behind the Goals page + AI actions. Metric-linked goals
+     (e.g. Net Worth → metrics.networth) auto-derive their current value. */
+
+  /** Current value of a goal — metric-linked goals read the metric series. */
+  goalCurrent(g) {
+    if (!g) return 0;
+    if (g.metric) {
+      const series = this.data.metrics?.[g.metric] || [];
+      return series.length ? (series[series.length - 1].value || 0) : (g.current || 0);
+    }
+    return g.current || 0;
+  },
+
+  /** 0..1 completion fraction. */
+  goalPct(g) {
+    const cur = this.goalCurrent(g);
+    const tgt = g?.target || 0;
+    if (!tgt) return 0;
+    return Math.max(0, Math.min(1, cur / tgt));
+  },
+
+  addGoal({ name, icon, category, target, unit, current, note, metric }) {
+    if (!name || !target) return null;
+    const gs = this.data.goals;
+    if (!Array.isArray(gs.items)) gs.items = [];
+    const g = {
+      id: 'g_' + Date.now(),
+      name: String(name).slice(0, 80),
+      icon: icon || '🎯',
+      category: category || 'custom',
+      target: +target,
+      current: +current || 0,
+      unit: unit || '',
+      metric: metric || null,
+      note: note || '',
+      history: (+current ? [{ date: new Date().toISOString(), value: +current }] : []),
+      createdAt: new Date().toISOString(),
+    };
+    gs.items.push(g);
+    this.save();
+    return g.id;
+  },
+
+  updateGoal(id, patch) {
+    const g = (this.data.goals?.items || []).find(x => x.id === id);
+    if (!g) return;
+    ['name', 'icon', 'category', 'unit', 'note'].forEach(k => { if (patch[k] !== undefined) g[k] = patch[k]; });
+    if (patch.target !== undefined && +patch.target > 0) g.target = +patch.target;
+    this.save();
+  },
+
+  removeGoal(id) {
+    const gs = this.data.goals;
+    gs.items = (gs.items || []).filter(x => x.id !== id);
+    this.save();
+  },
+
+  /** Log progress. mode 'set' (default) replaces current; 'add' increments.
+      Metric-linked goals route the value into the metric series instead. */
+  logGoal(id, value, mode) {
+    const g = (this.data.goals?.items || []).find(x => x.id === id);
+    if (!g || value == null || isNaN(+value)) return null;
+    if (g.metric) {
+      this.logMetric(g.metric, +value);
+      return { goal: g, value: +value, hitTarget: (+value >= g.target) };
+    }
+    const next = (mode === 'add') ? (g.current || 0) + (+value) : +value;
+    g.current = Math.max(0, next);
+    g.history.push({ date: new Date().toISOString(), value: g.current });
+    if (g.history.length > 200) g.history.splice(0, g.history.length - 200);
+    this.save();
+    return { goal: g, value: g.current, hitTarget: g.current >= g.target };
+  },
+
+  /** Snapshot summary for the AI + dashboard. */
+  computeGoals() {
+    const items = (this.data.goals?.items || []).map(g => ({
+      id: g.id, name: g.name, icon: g.icon, category: g.category,
+      current: this.goalCurrent(g), target: g.target, unit: g.unit,
+      pct: Math.round(this.goalPct(g) * 100),
+    }));
+    const overall = items.length ? Math.round(items.reduce((s, g) => s + g.pct, 0) / items.length) : 0;
+    return { items, overall, count: items.length, done: items.filter(g => g.pct >= 100).length };
   },
 
   /* ── Nutrition mutators ── */

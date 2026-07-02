@@ -540,6 +540,36 @@ window.APP_DATA = {
 
   /* ── Preset Program Exercises ───────────────────────────────── */
   presetExercises: {
+    'calisthenics-foundations': {
+      'Push Skills': { focus: 'Push-Ups · Dips · Handstand', exercises: [
+        { name: 'Wall Handstand Hold',       sets: '4', reps: '20-40s',  rest: '2 min',   muscle: 'Shoulders',  note: 'Chest-to-wall. Stack wrists-shoulders-hips. Build toward the freestanding 60s hold.', sub1: 'Pike Hold',              sub2: 'Crow Pose' },
+        { name: 'Push-Up',                   sets: '4', reps: 'AMRAP-2', rest: '2-3 min', muscle: 'Chest',      note: 'Chest to deck, full lockout, body rigid. Stop 2 shy of failure — chasing the 50-rep set.', sub1: 'Deficit Push-Up',   sub2: 'Knee Push-Up' },
+        { name: 'Dip',                       sets: '4', reps: '5-12',    rest: '2-3 min', muscle: 'Chest · Tri',note: 'Full depth — shoulder below elbow. No kip. Add weight once you own 12 clean.', sub1: 'Bench Dip',              sub2: 'Band-Assisted Dip' },
+        { name: 'Pseudo Planche Push-Up',    sets: '3', reps: '5-10',    rest: '2 min',   muscle: 'Shoulders',  note: 'Hands turned out, lean forward hard. The straight-arm strength feeder.', sub1: 'Pike Push-Up',           sub2: 'Incline Push-Up' },
+        { name: 'Triceps Extension (Bodyweight)', sets: '3', reps: '8-12', rest: '90s',   muscle: 'Triceps',    note: 'Hands on bar/rings, hinge at elbows only. Lockout strength for muscle-ups.', sub1: 'Diamond Push-Up',        sub2: 'Bench Dip' },
+      ]},
+      'Pull Skills': { focus: 'Pull-Ups · Muscle-Up Prep', exercises: [
+        { name: 'Pull-Up',                   sets: '5', reps: 'AMRAP-2', rest: '2-3 min', muscle: 'Lats',       note: 'Dead hang to chin over bar, no kip. The road to 20 is volume at RPE 8.', sub1: 'Band-Assisted Pull-Up',  sub2: 'Negative Pull-Up' },
+        { name: 'Explosive Chest-to-Bar Pull-Up', sets: '4', reps: '3-5', rest: '2-3 min', muscle: 'Lats · Power', note: 'Pull as HIGH and fast as possible — the engine of the muscle-up.', sub1: 'High Pull-Up',           sub2: 'Jumping Muscle-Up' },
+        { name: 'Straight-Bar Dip',          sets: '3', reps: '5-10',    rest: '2 min',   muscle: 'Chest · Tri',note: 'Top-half of the muscle-up. Own the transition position.', sub1: 'Ring Dip',               sub2: 'Parallel Bar Dip' },
+        { name: 'Muscle-Up Transition Drill', sets: '3', reps: '3-5',    rest: '2-3 min', muscle: 'Full Body',  note: 'Low bar or band: pull-over the bar slow. Groove the wrist flip.', sub1: 'Band Muscle-Up',         sub2: 'Jumping Muscle-Up' },
+        { name: 'Hanging Scapular Pull',     sets: '3', reps: '8-12',    rest: '90s',     muscle: 'Scap · Grip',note: 'Arms straight — shrug shoulder blades down. Shoulder armor + grip time.', sub1: 'Dead Hang (max)',        sub2: 'Active Hang' },
+      ]},
+      'Legs & Core': { focus: 'Single-Leg Strength · Midline', exercises: [
+        { name: 'Pistol Squat Progression',  sets: '4', reps: '3-6/leg', rest: '2-3 min', muscle: 'Quads',      note: 'Box pistols → assisted → free. Heel stays down, knee tracks the toes.', sub1: 'Box Pistol Squat',       sub2: 'Assisted Pistol' },
+        { name: 'Nordic Curl (Bodyweight)',  sets: '3', reps: '3-6',     rest: '2-3 min', muscle: 'Hamstrings', note: 'Lower as slow as possible. Push-up assist back to the top.', sub1: 'Glute Bridge March',     sub2: 'Sliding Leg Curl' },
+        { name: 'Hanging Leg Raise',         sets: '4', reps: '8-15',    rest: '2 min',   muscle: 'Core',       note: 'Toes to bar if you can. No swing — lats locked, ribs down.', sub1: 'Knee Raise',             sub2: 'Lying Leg Raise' },
+        { name: 'Hollow Body Hold',          sets: '4', reps: '20-40s',  rest: '90s',     muscle: 'Core',       note: 'Lower back GLUED to the floor. The shape behind every skill.', sub1: 'Tuck Hollow Hold',       sub2: 'Dead Bug' },
+        { name: 'Calf Raise (Single-Leg)',   sets: '3', reps: '12-20',   rest: '60s',     muscle: 'Calves',     note: 'Full stretch at the bottom, pause at the top.', sub1: 'Double-Leg Calf Raise',  sub2: 'Seated Calf Raise' },
+      ]},
+      'Skill Play': { focus: 'Handstand · Skill Practice · Mobility', exercises: [
+        { name: 'Freestanding Handstand Practice', sets: '5', reps: '30-60s work', rest: '90s', muscle: 'Balance', note: 'Kick-ups away from the wall. Bail safely, log your best hold — 60s is the target.', sub1: 'Wall Handstand',   sub2: 'Frog Stand' },
+        { name: 'Skin the Cat',              sets: '3', reps: '3-5',     rest: '2 min',   muscle: 'Shoulders',  note: 'Rings or bar. Slow rotation — shoulder mobility + straight-arm strength.', sub1: 'German Hang',            sub2: 'Tuck Shoulder Roll' },
+        { name: 'L-Sit',                     sets: '4', reps: '10-20s',  rest: '90s',     muscle: 'Core',       note: 'Parallettes or floor. Legs straight, knees locked, push the floor away.', sub1: 'Tuck L-Sit',             sub2: 'Foot-Supported L-Sit' },
+        { name: 'Bridge / Back Bend',        sets: '3', reps: '15-30s',  rest: '90s',     muscle: 'Mobility',   note: 'Open the shoulders and hips — armor for handstands and bar work.', sub1: 'Table Bridge',           sub2: 'Cobra Stretch' },
+        { name: 'Practice: Weakest Skill',   sets: '3', reps: '5 min',   rest: 'as needed', muscle: 'Skill',    note: 'Muscle-up, pistol, or handstand — greasing the groove on whatever is furthest from target.', sub1: 'Any goal skill', sub2: 'Play' },
+      ]},
+    },
     'classic-ppl': {
       Push: { focus: 'Chest · Shoulders · Triceps', exercises: [
         { name: 'Barbell Bench Press',            sets: '4', reps: '5-8',   rest: '3-4 min', muscle: 'Chest',      note: 'Arch naturally, bar to lower chest, drive through the floor.',          sub1: 'DB Bench Press',              sub2: 'Machine Chest Press' },

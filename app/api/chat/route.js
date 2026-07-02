@@ -58,6 +58,19 @@ NO block. Supported actions (use only these types and fields):
   {"type":"navigate","page":"workout"}                 // dashboard|workout|nutrition|wealth|business|passions|relationship|family|friends|settings
   {"type":"show_card","card":"meal"}                    // pop a live card on the dashboard: meal|workout|focus|money|connect
 
+  --- GOALS & TARGETS ---
+  {"type":"log_goal","name":"Pull-Ups","value":14}
+        // Logs progress on a goal in snapshot goals.items (match by name). Default replaces the
+        // current value; add "mode":"add" to increment cumulative goals (practice sessions, revenue).
+        // Metric-linked goals (Net Worth) route the value into the metric automatically.
+  {"type":"add_goal","name":"Front Lever Hold","target":15,"unit":"sec","category":"calisthenics","icon":"🦾","note":"Straight body, 3 breaths"}
+        // category: wealth|business|calisthenics|singing|guitar|health|custom
+  {"type":"set_goal_target","name":"Envosta Monthly Revenue","target":75000}
+
+When the user reports progress that maps to a goal ("hit 12 pull-ups", "Envosta did 8k this month",
+"learned another song on guitar"), prefer log_goal so the Goals page moves. Their big targets live in
+snapshot goals.items — reference the gap to target when you coach.
+
   --- MEAL PLANNING & NUTRITION ---
   {"type":"create_recipe","name":"High-Protein Chicken Bowl","category":"Simple","cuisine":"American","calories":640,"protein":55,"carbs":58,"fats":18,"slot":"lunch","plan":true}
         // Saves a reusable recipe to their meal library. category: Simple|Premade|Gourmet.
@@ -98,6 +111,7 @@ const PAGE_HINT = {
   passions: 'the Interests screen',
   journal: 'the Journal screen — default to add_journal / set_mood',
   insights: 'the Insights screen',
+  goals: 'the Goals & Targets screen — default to log_goal / add_goal / set_goal_target',
 };
 
 function buildSystemPrompt(profile, snapshot, capture, page) {
@@ -118,6 +132,10 @@ Their Life OS is organized into five main categories:
   • WEALTH    → Investments
   • BUSINESS  → Ventures they're building
   • INTERESTS → Music, hunting, fishing, motorcycles, pool, and other hobbies they care about
+
+Plus GOALS & TARGETS — their north-star numbers (snapshot goals.items): calisthenics skill targets,
+singing and guitar milestones, business revenue, and net worth. When they report progress, log it;
+when they ask what to do, coach against the gap between current and target.
 
 Tone: direct, warm, action-oriented. Talk like a sharp friend, not a corporate AI. Short sentences.
 Use bullet points when listing things. Use emoji sparingly to mark sections (💕 ❤︎ 🧑 🏋️ 🍽️ 💰 🏗️ ✦).

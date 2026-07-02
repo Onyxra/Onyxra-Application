@@ -108,6 +108,20 @@ window.registerPage('workout', function initWorkout() {
       schedule: ['Chest & Tri', 'Back & Bi', 'Shoulders', 'Arms', 'Legs', 'Rest', 'Rest'],
       stages: [{ name: 'Split Training', weekCount: 52 }],
     },
+    {
+      id: 'calisthenics-foundations',
+      name: 'Calisthenics Foundations',
+      eyebrow: 'Bodyweight · Skills',
+      description: 'Four skill-focused bodyweight sessions built around your targets: 20 pull-ups, 50 push-ups, 25 dips, the first muscle-up, and a 60-second freestanding handstand. Every session feeds a goal on the Goals page.',
+      gradient: 'linear-gradient(135deg, #ffb340 0%, #b8641a 100%)',
+      icon: '🤸',
+      daysPerWeek: 4,
+      duration: 'Ongoing',
+      level: 'All Levels',
+      tags: ['Bodyweight', 'Skills'],
+      schedule: ['Push Skills', 'Pull Skills', 'Rest', 'Legs & Core', 'Skill Play', 'Rest', 'Rest'],
+      stages: [{ name: 'Skill Building', weekCount: 52 }],
+    },
   ];
 
   const PRESET_EXERCISES = APP_DATA.presetExercises;

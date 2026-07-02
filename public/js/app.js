@@ -41,12 +41,13 @@ window.registerPage = function(name, fn) {
 /* ══════════════════════════════════════════════════════════════════
    ROUTER
 ════════════════════════════════════════════════════════════════ */
-const VALID_PAGES = ['dashboard', 'journal', 'insights', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'relationship', 'family', 'friends', 'settings'];
+const VALID_PAGES = ['dashboard', 'journal', 'insights', 'goals', 'nutrition', 'workout', 'business', 'wealth', 'passions', 'relationship', 'family', 'friends', 'settings'];
 
 const PAGE_NAMES = {
   dashboard:    'Dashboard',
   journal:      'Journal',
   insights:     'Insights',
+  goals:        'Goals & Targets',
   nutrition:    'Meal Plan',
   workout:      'Workout',
   business:     'Business',
@@ -887,7 +888,11 @@ window.buildOnyxraSnapshot = function buildOnyxraSnapshot() {
       streak: (typeof S.habitStreak === 'function') ? S.habitStreak(h.id) : 0,
     })),
     metrics: { weight: last(d.metrics?.weight), bodyfat: last(d.metrics?.bodyfat), networth: last(d.metrics?.networth) },
-    workout: { todayDay: S.currentWorkoutDay, currentPhase: ws.currentPhase, weekNumber: ws.weekNumber, recentLogCount: (ws.log || []).length },
+    goals: (typeof S.computeGoals === 'function') ? S.computeGoals() : null,
+    workout: {
+      todayDay: S.currentWorkoutDay, currentPhase: ws.currentPhase, weekNumber: ws.weekNumber, recentLogCount: (ws.log || []).length,
+      personalBests: Object.entries(ws.personalBests || {}).slice(0, 25).map(([exercise, pb]) => ({ exercise, weight: pb.weight, reps: pb.reps, est1RM: pb.est1RM })),
+    },
     nutrition: (() => {
       const ntKey = new Date().toISOString().slice(0, 10); // nutrition page keys mealPlan by UTC
       const plan = (ns.mealPlan && ns.mealPlan[ntKey]) || {};
@@ -945,6 +950,7 @@ function _onyxMapPage(p) {
     money: 'wealth', investing: 'wealth', invest: 'wealth', finance: 'wealth', investments: 'wealth',
     people: 'relationship', partner: 'relationship', love: 'relationship',
     interests: 'passions', hobbies: 'passions', interest: 'passions',
+    goal: 'goals', targets: 'goals', target: 'goals',
     home: 'dashboard', ai: 'dashboard', chat: 'dashboard',
   };
   return (map[p] && all.includes(map[p])) ? map[p] : null;
@@ -1146,6 +1152,41 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
           }
           break;
         }
+        case 'add_goal': {
+          if (a.name && a.target != null && S.addGoal) {
+            const gid = S.addGoal({
+              name: a.name, target: +a.target, unit: a.unit || '', icon: a.icon,
+              category: ['wealth', 'business', 'calisthenics', 'singing', 'guitar', 'health', 'custom'].includes(norm(a.category)) ? norm(a.category) : 'custom',
+              current: a.current != null ? +a.current : 0, note: a.note || '',
+            });
+            if (gid) out.push({ icon: '🎯', label: 'Goal: ' + a.name });
+          }
+          break;
+        }
+        case 'log_goal':
+        case 'log_goal_progress': {
+          const gl = (S.data.goals?.items || []);
+          const g = gl.find(x => norm(x.name) === norm(a.name))
+                 || gl.find(x => norm(a.name) && norm(x.name).includes(norm(a.name)));
+          if (g && a.value != null && S.logGoal) {
+            const res = S.logGoal(g.id, +a.value, norm(a.mode) === 'add' ? 'add' : 'set');
+            if (res) {
+              out.push({ icon: res.hitTarget ? '✦' : '🎯', label: (res.hitTarget ? 'TARGET HIT — ' : '') + g.name + ': ' + (+a.value).toLocaleString() });
+              if (res.hitTarget && typeof window.onyxConfetti === 'function') { try { window.onyxConfetti(); } catch (e) {} }
+            }
+          }
+          break;
+        }
+        case 'set_goal_target': {
+          const gl2 = (S.data.goals?.items || []);
+          const g2 = gl2.find(x => norm(x.name) === norm(a.name))
+                  || gl2.find(x => norm(a.name) && norm(x.name).includes(norm(a.name)));
+          if (g2 && a.target != null && S.updateGoal) {
+            S.updateGoal(g2.id, { target: +a.target });
+            out.push({ icon: '🎯', label: g2.name + ' target → ' + (+a.target).toLocaleString() });
+          }
+          break;
+        }
         case 'add_food':
         case 'add_ingredient': {
           if (a.name && S.addFoodItem) {
@@ -1284,6 +1325,7 @@ window.applyOnyxraActions = function applyOnyxraActions(actions) {
     passions:     { ph: 'Log progress on an interest or hobby…',       ctx: 'Interests' },
     journal:      { ph: 'Write a reflection or log your mood…',        ctx: 'Journal' },
     insights:     { ph: 'Ask about a trend, or log a metric…',         ctx: 'Insights' },
+    goals:        { ph: 'Log progress on a goal — reps, revenue, songs…', ctx: 'Goals' },
   };
   function curPage() { return (typeof getCurrentPage === 'function') ? getCurrentPage() : 'dashboard'; }
   function applyPageContext() {
